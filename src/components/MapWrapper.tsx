@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import type { Position } from '@/types/geolocation'
+import type { ForestArea } from '@/types/forest'
 
 const Map = dynamic(() => import('./Map').then((mod) => mod.Map), {
   ssr: false,
@@ -17,8 +18,9 @@ const Map = dynamic(() => import('./Map').then((mod) => mod.Map), {
 
 interface MapWrapperProps {
   position: Position
+  forests?: ForestArea[]
 }
 
-export function MapWrapper({ position }: MapWrapperProps) {
-  return <Map position={position} />
+export function MapWrapper({ position, forests = [] }: MapWrapperProps) {
+  return <Map position={position} forests={forests} />
 }
