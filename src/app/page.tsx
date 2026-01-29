@@ -3,7 +3,6 @@
 import { useEffect, useRef } from 'react'
 import { useGeolocation } from '@/hooks/useGeolocation'
 import { LocationPermission } from '@/components/LocationPermission'
-import { LocationDisplay } from '@/components/LocationDisplay'
 import { MapWrapper } from '@/components/MapWrapper'
 
 export default function Home() {
