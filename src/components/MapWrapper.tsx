@@ -19,8 +19,9 @@ const Map = dynamic(() => import('./Map').then((mod) => mod.Map), {
 interface MapWrapperProps {
   position: Position
   forests?: ForestArea[]
+  heading?: number | null
 }
 
-export function MapWrapper({ position, forests = [] }: MapWrapperProps) {
-  return <Map position={position} forests={forests} />
+export function MapWrapper({ position, forests = [], heading }: MapWrapperProps) {
+  return <Map position={position} forests={forests} heading={heading} />
 }

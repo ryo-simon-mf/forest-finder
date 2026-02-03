@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { useGeolocation } from '@/hooks/useGeolocation'
 import { useForestSearch } from '@/hooks/useForestSearch'
+import { useDeviceOrientation } from '@/hooks/useDeviceOrientation'
 import { LocationPermission } from '@/components/LocationPermission'
 import { MapWrapper } from '@/components/MapWrapper'
 import { formatDistance } from '@/lib/distance'
@@ -16,6 +17,12 @@ export default function Home() {
     startWatching,
     stopWatching,
   } = useGeolocation()
+
+  const {
+    heading,
+    permissionState: orientationPermission,
+    requestPermission: requestOrientationPermission,
+  } = useDeviceOrientation()
 
   const { result: forestResult, isLoading: isSearching } = useForestSearch(position)
 
@@ -61,7 +68,21 @@ export default function Home() {
           <MapWrapper
             position={position}
             forests={forestResult?.forests || []}
+            heading={heading}
           />
+        )}
+
+        {/* iOS用コンパス許可ボタン */}
+        {orientationPermission === 'prompt' && (
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[1000]">
+            <button
+              onClick={requestOrientationPermission}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm"
+            >
+              <span>🧭</span>
+              <span>コンパスを有効にする</span>
+            </button>
+          </div>
         )}
 
         {/* 距離表示オーバーレイ */}

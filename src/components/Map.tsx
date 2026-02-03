@@ -45,7 +45,7 @@ const DefaultIcon = L.icon({
   shadowSize: [41, 41],
 })
 
-// 現在地用のカスタムアイコン
+// 現在地用のカスタムアイコン（方向なし）
 const CurrentLocationIcon = L.divIcon({
   className: 'current-location-marker',
   html: `
@@ -60,6 +60,48 @@ const CurrentLocationIcon = L.divIcon({
   `,
   iconSize: [20, 20],
   iconAnchor: [10, 10],
+})
+
+// 現在地用のカスタムアイコン（方向付き）
+const createDirectionalIcon = (heading: number) => L.divIcon({
+  className: 'current-location-marker-directional',
+  html: `
+    <div style="
+      position: relative;
+      width: 60px;
+      height: 60px;
+    ">
+      <!-- 視野範囲の扇形 -->
+      <div style="
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%) rotate(${heading}deg);
+        transform-origin: center 30px;
+        width: 0;
+        height: 0;
+        border-left: 25px solid transparent;
+        border-right: 25px solid transparent;
+        border-bottom: 40px solid rgba(59, 130, 246, 0.3);
+        filter: blur(2px);
+      "></div>
+      <!-- 中心の円 -->
+      <div style="
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 20px;
+        height: 20px;
+        background-color: #3b82f6;
+        border: 3px solid white;
+        border-radius: 50%;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      "></div>
+    </div>
+  `,
+  iconSize: [60, 60],
+  iconAnchor: [30, 30],
 })
 
 // 森林用のカスタムアイコン
@@ -109,6 +151,7 @@ L.Marker.prototype.options.icon = DefaultIcon
 interface MapProps {
   position: Position
   forests?: ForestArea[]
+  heading?: number | null
 }
 
 function MapUpdater({ position }: { position: Position }) {
@@ -150,10 +193,15 @@ function StyleSwitcher({
   )
 }
 
-export function Map({ position, forests = [] }: MapProps) {
+export function Map({ position, forests = [], heading }: MapProps) {
   const [mapStyle, setMapStyle] = useState<MapStyleKey>('standard')
   const nearestForestId = forests.length > 0 ? forests[0].id : null
   const style = MAP_STYLES[mapStyle]
+
+  // 方向が取得できている場合は方向付きアイコンを使用
+  const locationIcon = heading !== null && heading !== undefined
+    ? createDirectionalIcon(heading)
+    : CurrentLocationIcon
 
   return (
     <div className="h-full w-full relative">
@@ -205,7 +253,7 @@ export function Map({ position, forests = [] }: MapProps) {
         {/* 現在地マーカー */}
         <Marker
           position={[position.latitude, position.longitude]}
-          icon={CurrentLocationIcon}
+          icon={locationIcon}
         >
           <Popup>
             <div className="text-center">
