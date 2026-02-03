@@ -68,40 +68,56 @@ const createDirectionalIcon = (heading: number) => L.divIcon({
   html: `
     <div style="
       position: relative;
-      width: 60px;
-      height: 60px;
+      width: 80px;
+      height: 80px;
     ">
-      <!-- 視野範囲の扇形 -->
-      <div style="
-        position: absolute;
-        top: 0;
-        left: 50%;
-        transform: translateX(-50%) rotate(${heading}deg);
-        transform-origin: center 30px;
-        width: 0;
-        height: 0;
-        border-left: 25px solid transparent;
-        border-right: 25px solid transparent;
-        border-bottom: 40px solid rgba(59, 130, 246, 0.3);
-        filter: blur(2px);
-      "></div>
+      <!-- 視野範囲の扇形（SVG） -->
+      <svg
+        width="80"
+        height="80"
+        viewBox="0 0 80 80"
+        style="
+          position: absolute;
+          top: 0;
+          left: 0;
+          transform: rotate(${heading}deg);
+          transform-origin: center center;
+        "
+      >
+        <!-- 扇形（60度の視野角） -->
+        <path
+          d="M 40 40 L 40 5 A 35 35 0 0 1 70.3 22 Z"
+          fill="rgba(59, 130, 246, 0.5)"
+          stroke="rgba(59, 130, 246, 0.8)"
+          stroke-width="1"
+        />
+        <!-- 中心方向の矢印ライン -->
+        <line
+          x1="40"
+          y1="40"
+          x2="40"
+          y2="8"
+          stroke="rgba(59, 130, 246, 0.9)"
+          stroke-width="2"
+        />
+      </svg>
       <!-- 中心の円 -->
       <div style="
         position: absolute;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        width: 20px;
-        height: 20px;
+        width: 18px;
+        height: 18px;
         background-color: #3b82f6;
         border: 3px solid white;
         border-radius: 50%;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.4);
       "></div>
     </div>
   `,
-  iconSize: [60, 60],
-  iconAnchor: [30, 30],
+  iconSize: [80, 80],
+  iconAnchor: [40, 40],
 })
 
 // 森林用のカスタムアイコン
