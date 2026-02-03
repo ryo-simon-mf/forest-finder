@@ -112,6 +112,11 @@ export default function Home() {
                     <p className="text-white">±{Math.round(position.accuracy)}m</p>
                   </>
                 )}
+                {heading !== null && (
+                  <p className="text-gray-400 mt-1">
+                    🧭 {Math.round(heading)}°
+                  </p>
+                )}
                 {forestResult && (
                   <p className="text-gray-500 mt-1">
                     {forestResult.forests.length}件の森林

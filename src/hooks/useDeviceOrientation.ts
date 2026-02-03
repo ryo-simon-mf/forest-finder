@@ -22,17 +22,13 @@ export function useDeviceOrientation() {
     let heading: number | null = null
 
     if ('webkitCompassHeading' in event) {
-      // iOS: webkitCompassHeadingは北からの角度（0-360）
+      // iOS: webkitCompassHeadingは北からの時計回りの角度（0-360）
+      // 北=0, 東=90, 南=180, 西=270
       heading = (event as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading ?? null
     } else if (event.alpha !== null) {
-      // Android: alphaは画面の向きからの角度、北を基準に変換
-      // absolute が true の場合は地磁気北を基準にしている
-      if (event.absolute) {
-        heading = (360 - event.alpha) % 360
-      } else {
-        // 相対的な向きの場合はそのまま使用（精度は低い）
-        heading = (360 - event.alpha) % 360
-      }
+      // Android: alphaは北から反時計回りの角度
+      // 時計回りに変換: heading = (360 - alpha) % 360
+      heading = (360 - event.alpha) % 360
     }
 
     setState((prev) => ({
@@ -82,12 +78,19 @@ export function useDeviceOrientation() {
     if (needsPermission) {
       setState((prev) => ({ ...prev, permissionState: 'prompt' }))
     } else {
-      // 許可不要な場合は自動で開始
-      window.addEventListener('deviceorientation', handleOrientation, true)
+      // Android: deviceorientationabsolute を優先（絶対方位）
+      // フォールバックとして deviceorientation を使用
+      const win = window as Window & { ondeviceorientationabsolute?: unknown }
+      if ('ondeviceorientationabsolute' in win) {
+        window.addEventListener('deviceorientationabsolute' as 'deviceorientation', handleOrientation, true)
+      } else {
+        window.addEventListener('deviceorientation', handleOrientation, true)
+      }
       setState((prev) => ({ ...prev, permissionState: 'granted' }))
     }
 
     return () => {
+      window.removeEventListener('deviceorientationabsolute' as 'deviceorientation', handleOrientation, true)
       window.removeEventListener('deviceorientation', handleOrientation, true)
     }
   }, [handleOrientation])
