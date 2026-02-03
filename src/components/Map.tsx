@@ -8,18 +8,8 @@ import type { Position } from '@/types/geolocation'
 import type { ForestArea } from '@/types/forest'
 import { formatDistance } from '@/lib/distance'
 
-// 地図スタイル定義
+// 地図スタイル定義（認証不要のタイルのみ使用）
 const MAP_STYLES = {
-  watercolor: {
-    name: '水彩',
-    url: 'https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg',
-    attribution: '&copy; <a href="https://stamen.com">Stamen Design</a>',
-  },
-  dark: {
-    name: 'ダーク',
-    url: 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>',
-  },
   standard: {
     name: '標準',
     url: 'https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png',
@@ -29,6 +19,16 @@ const MAP_STYLES = {
     name: '淡色',
     url: 'https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png',
     attribution: '&copy; <a href="https://maps.gsi.go.jp/">国土地理院</a>',
+  },
+  osm: {
+    name: 'OSM',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
+  },
+  dark: {
+    name: 'ダーク',
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
   },
 } as const
 
@@ -151,7 +151,7 @@ function StyleSwitcher({
 }
 
 export function Map({ position, forests = [] }: MapProps) {
-  const [mapStyle, setMapStyle] = useState<MapStyleKey>('watercolor')
+  const [mapStyle, setMapStyle] = useState<MapStyleKey>('standard')
   const nearestForestId = forests.length > 0 ? forests[0].id : null
   const style = MAP_STYLES[mapStyle]
 
