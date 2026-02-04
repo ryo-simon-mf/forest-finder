@@ -50,6 +50,32 @@
 
 ---
 
+## 2026-02-04
+
+### GitHub Pages デプロイ
+- GitHub CLI（gh）をインストール
+- リポジトリ作成: https://github.com/ryo-simon-mf/forest-finder
+- Next.js 静的エクスポート設定（`output: 'export'`）
+- GitHub Actions ワークフロー作成（自動デプロイ）
+- 公開URL: https://ryo-simon-mf.github.io/forest-finder/
+
+### 地図タイル修正
+- Stadia Maps が認証エラー（401）を出したため変更
+- 認証不要のタイルに置き換え:
+  - 国土地理院（標準・淡色）
+  - OpenStreetMap
+  - CARTO（ダーク）
+
+### コンパス機能（スマホの向き表示）
+- Device Orientation API でコンパス方位を取得
+- `useDeviceOrientation` カスタムフック作成
+- 現在地マーカーに視野範囲（扇形）を表示
+- iOS用のコンパス許可ボタン追加
+- Android: `deviceorientationabsolute` イベントを優先使用
+- 方角デバッグ表示（🧭 XX°）
+
+---
+
 ## ファイル構成
 
 ```
@@ -66,7 +92,8 @@ forest-finder/
 │   │   └── MapWrapper.tsx          # 動的インポートラッパー
 │   ├── hooks/
 │   │   ├── useGeolocation.ts       # GPS取得フック
-│   │   └── useForestSearch.ts      # 森林検索フック
+│   │   ├── useForestSearch.ts      # 森林検索フック
+│   │   └── useDeviceOrientation.ts # コンパス方位取得フック
 │   ├── lib/
 │   │   └── distance.ts             # 距離計算ユーティリティ
 │   ├── services/
@@ -94,9 +121,16 @@ forest-finder/
 ## Git コミット履歴
 
 ```
-bf980d1 Phase 5-6: 森林データ・距離計算・地図スタイル切替
-7a2c067 Phase 4: 地図表示機能の実装
-06d3081 Phase 1-4: 環境構築、PWA、GPS、地図表示まで実装
+34c73d3 fix: 方角のずれを修正・デバッグ表示追加
+9f422cc fix: 方向表示を見やすく改善
+58f7dc1 feat: スマホの向きを地図に反映する機能を追加
+4fb176e fix: 地図タイルを認証不要のものに変更
+2854270 ci: GitHub Pages デプロイ設定
+470c298 docs: Phase 11 AR機能をTODOに追加
+1d9ad26 docs: 作業ログを追加
+59ba78c Phase 5-6: 森林データ・距離計算・地図スタイル切替
+8904e1a Phase 4: 地図表示機能の実装
+87307a4 Phase 1-4: 環境構築、PWA、GPS、地図表示まで実装
 ```
 
 ---
@@ -109,10 +143,12 @@ bf980d1 Phase 5-6: 森林データ・距離計算・地図スタイル切替
 | 言語 | TypeScript |
 | スタイリング | Tailwind CSS |
 | 地図 | Leaflet / React-Leaflet |
-| 地図タイル | 国土地理院 / Stadia Maps |
+| 地図タイル | 国土地理院 / OpenStreetMap / CARTO |
 | PWA | next-pwa |
 | 森林データ | OpenStreetMap (Overpass API) |
 | 住所データ | 国土地理院 逆ジオコーディングAPI |
+| コンパス | Device Orientation API |
+| デプロイ | GitHub Pages + GitHub Actions |
 
 ---
 
@@ -121,5 +157,7 @@ bf980d1 Phase 5-6: 森林データ・距離計算・地図スタイル切替
 - [ ] Phase 7: UI/UX改善
 - [ ] Phase 8: オフライン対応
 - [ ] Phase 9: テスト・最適化
-- [ ] Phase 10: デプロイ
+- [x] Phase 10: デプロイ（GitHub Pages）
+- [ ] Phase 11: AR機能
 - [ ] 他県の森林データ追加（神奈川、埼玉、千葉など）
+- [ ] コンパス方角のずれ調査・修正
