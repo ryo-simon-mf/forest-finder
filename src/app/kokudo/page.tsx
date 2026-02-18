@@ -47,7 +47,7 @@ export default function KokudoPage() {
 
   const { result: forestResult, isLoading: isSearching } = useForestSearch(
     dataLoaded ? position : null,
-    { searchFn }
+    { searchFn, radiusMeters: 50000 }
   )
 
   const watchIdRef = useRef<number | null>(null)
