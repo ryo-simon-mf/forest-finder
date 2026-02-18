@@ -99,10 +99,13 @@ export default function Home() {
                     <div className="animate-spin rounded-full h-5 w-5 border-2 border-green-500 border-t-transparent" />
                   )}
                 </div>
-                {nearestForest?.name && (
-                  <p className="text-gray-500 text-sm mt-1">
-                    {nearestForest.name}
-                  </p>
+                {nearestForest && (
+                  <div className="text-gray-500 text-sm mt-1">
+                    {nearestForest.name && <p>{nearestForest.name}</p>}
+                    <p className="text-gray-600 text-xs">
+                      📍 {nearestForest.address || '住所を取得中...'}
+                    </p>
+                  </div>
                 )}
               </div>
               <div className="text-right text-sm">

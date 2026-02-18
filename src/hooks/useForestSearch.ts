@@ -5,6 +5,7 @@ import type { Position } from '@/types/geolocation'
 import type { ForestSearchResult } from '@/types/forest'
 import { searchForestsLocal } from '@/services/localForestService'
 import { calculateDistance } from '@/lib/distance'
+import { resolveForestAddresses } from '@/lib/reverseGeocode'
 
 export type SearchFn = (
   latitude: number,
@@ -52,6 +53,21 @@ export function useForestSearch(
         )
         setResult(searchResult)
         lastSearchPositionRef.current = pos
+
+        // 住所が未設定のエントリを逆ジオコーディングで解決
+        const needsAddress = searchResult.forests.filter((f) => !f.address)
+        if (needsAddress.length > 0) {
+          resolveForestAddresses(needsAddress).then((addressMap) => {
+            setResult((prev) => {
+              if (!prev) return prev
+              const forests = prev.forests.map((f) => {
+                const addr = addressMap.get(f.id)
+                return addr ? { ...f, address: addr } : f
+              })
+              return { ...prev, forests, nearest: forests[0] || null }
+            })
+          })
+        }
       } catch (err) {
         setError('森林データの検索に失敗しました')
         console.error(err)

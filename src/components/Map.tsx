@@ -246,11 +246,9 @@ export function Map({ position, forests = [], heading }: MapProps) {
                 <p className="font-bold text-green-700">
                   {forest.name || '森林'}
                 </p>
-                {forest.address && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    📍 {forest.address}
-                  </p>
-                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  📍 {forest.address || '住所を取得中...'}
+                </p>
                 {forest.distance !== undefined && (
                   <p className="text-sm text-gray-600 mt-1">
                     距離: {formatDistance(forest.distance)}
