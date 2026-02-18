@@ -6,9 +6,17 @@ import type { ForestSearchResult } from '@/types/forest'
 import { searchForestsLocal } from '@/services/localForestService'
 import { calculateDistance } from '@/lib/distance'
 
+export type SearchFn = (
+  latitude: number,
+  longitude: number,
+  radiusMeters?: number,
+  limit?: number
+) => ForestSearchResult
+
 interface UseForestSearchOptions {
   radiusMeters?: number
   minDistanceChange?: number
+  searchFn?: SearchFn
 }
 
 interface UseForestSearchReturn {
@@ -22,7 +30,7 @@ export function useForestSearch(
   position: Position | null,
   options: UseForestSearchOptions = {}
 ): UseForestSearchReturn {
-  const { radiusMeters = 5000, minDistanceChange = 50 } = options
+  const { radiusMeters = 5000, minDistanceChange = 50, searchFn = searchForestsLocal } = options
 
   const [result, setResult] = useState<ForestSearchResult | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -37,7 +45,7 @@ export function useForestSearch(
 
       try {
         // ローカルデータから検索（同期処理なので高速）
-        const searchResult = searchForestsLocal(
+        const searchResult = searchFn(
           pos.latitude,
           pos.longitude,
           radiusMeters
@@ -51,7 +59,7 @@ export function useForestSearch(
         setIsLoading(false)
       }
     },
-    [radiusMeters]
+    [radiusMeters, searchFn]
   )
 
   const refresh = useCallback(() => {
