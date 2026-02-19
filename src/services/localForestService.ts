@@ -86,3 +86,10 @@ export async function preloadForestData(): Promise<void> {
 export function isForestDataLoaded(): boolean {
   return cachedData !== null
 }
+
+/**
+ * 読み込み済みデータの総件数
+ */
+export function getForestDataCount(): number {
+  return cachedData?.length ?? 0
+}

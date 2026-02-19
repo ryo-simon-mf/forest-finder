@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import localFont from 'next/font/local'
+import { ServiceWorkerUpdater } from '@/components/ServiceWorkerUpdater'
 import './globals.css'
 
 const geistSans = localFont({
@@ -47,6 +48,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <ServiceWorkerUpdater />
         {children}
       </body>
     </html>

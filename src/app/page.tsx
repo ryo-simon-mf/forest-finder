@@ -11,6 +11,7 @@ import {
   searchForestsLocal,
   preloadForestData,
   isForestDataLoaded,
+  getForestDataCount,
 } from '@/services/localForestService'
 
 const MIN_RADIUS = 5000
@@ -182,7 +183,7 @@ export default function Home() {
                 )}
                 {forestResult && (
                   <p className="text-gray-500 mt-1">
-                    {forestResult.forests.length}件の森林
+                    {forestResult.forests.length}/{getForestDataCount().toLocaleString()}件
                   </p>
                 )}
               </div>
