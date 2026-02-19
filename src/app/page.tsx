@@ -7,10 +7,17 @@ import { useDeviceOrientation } from '@/hooks/useDeviceOrientation'
 import { LocationPermission } from '@/components/LocationPermission'
 import { MapWrapper } from '@/components/MapWrapper'
 import { formatByMode, type DisplayMode } from '@/lib/distance'
+import {
+  searchForestsLocal,
+  preloadForestData,
+  isForestDataLoaded,
+} from '@/services/localForestService'
 
 const MIN_RADIUS = 5000
 
 export default function Home() {
+  const [dataLoaded, setDataLoaded] = useState(isForestDataLoaded())
+
   const {
     status,
     position,
@@ -26,10 +33,27 @@ export default function Home() {
     requestPermission: requestOrientationPermission,
   } = useDeviceOrientation()
 
+  // データの事前読み込み
+  useEffect(() => {
+    if (!dataLoaded) {
+      preloadForestData().then(() => setDataLoaded(true))
+    }
+  }, [dataLoaded])
+
   const [mapRadius, setMapRadius] = useState(MIN_RADIUS)
   const radiusMeters = Math.max(MIN_RADIUS, mapRadius)
 
-  const { result: forestResult, isLoading: isSearching } = useForestSearch(position, { radiusMeters })
+  const searchFn = useCallback(
+    (lat: number, lon: number, radius?: number, limit?: number) => {
+      return searchForestsLocal(lat, lon, radius, limit)
+    },
+    []
+  )
+
+  const { result: forestResult, isLoading: isSearching } = useForestSearch(
+    dataLoaded ? position : null,
+    { searchFn, radiusMeters }
+  )
 
   const [displayMode, setDisplayMode] = useState<DisplayMode>('distance')
 
@@ -57,6 +81,23 @@ export default function Home() {
         error={error}
         onRequestPermission={requestPermission}
       />
+    )
+  }
+
+  // データ読み込み中
+  if (!dataLoaded) {
+    return (
+      <main className="h-screen flex flex-col bg-gray-900 text-white">
+        <header className="bg-gray-800 border-b border-gray-700 px-4 py-3 flex-shrink-0">
+          <h1 className="text-xl font-bold text-green-400">Forest Finder</h1>
+        </header>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-500 border-t-transparent mx-auto mb-4" />
+            <p className="text-gray-400">森林データを読み込み中...</p>
+          </div>
+        </div>
+      </main>
     )
   }
 
