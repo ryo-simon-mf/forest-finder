@@ -58,7 +58,11 @@ export default function Home() {
 
   const [displayMode, setDisplayMode] = useState<DisplayMode>('distance')
 
-  const handleBoundsChange = useCallback((r: number) => setMapRadius(r), [])
+  // 半径を量子化（2のべき乗に丸め）して微小変化による再検索を防止
+  const handleBoundsChange = useCallback((r: number) => {
+    const quantized = Math.pow(2, Math.round(Math.log2(r)))
+    setMapRadius(quantized)
+  }, [])
 
   const watchIdRef = useRef<number | null>(null)
 
