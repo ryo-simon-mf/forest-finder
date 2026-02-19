@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -184,25 +184,49 @@ function MapUpdater({ position }: { position: Position }) {
 
 function BoundsWatcher({ onBoundsChange }: { onBoundsChange: (radiusMeters: number) => void }) {
   const map = useMap()
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const handler = () => {
-      const bounds = map.getBounds()
-      const center = bounds.getCenter()
-      const ne = bounds.getNorthEast()
-      const radius = center.distanceTo(ne)
-      onBoundsChange(radius)
+      // デバウンス: ズーム/パン完了後500msで発火（アニメーション中の連続発火を防止）
+      if (timerRef.current) clearTimeout(timerRef.current)
+      timerRef.current = setTimeout(() => {
+        const bounds = map.getBounds()
+        const center = bounds.getCenter()
+        const ne = bounds.getNorthEast()
+        const radius = center.distanceTo(ne)
+        onBoundsChange(radius)
+      }, 500)
     }
 
-    handler()
+    // 初回は即時発火
+    const bounds = map.getBounds()
+    const center = bounds.getCenter()
+    const ne = bounds.getNorthEast()
+    onBoundsChange(center.distanceTo(ne))
+
     map.on('zoomend', handler)
     map.on('moveend', handler)
 
     return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
       map.off('zoomend', handler)
       map.off('moveend', handler)
     }
   }, [map, onBoundsChange])
+
+  return null
+}
+
+/** ズーム開始時にポップアップを閉じる（マーカー入れ替え時の不自然な消失を防止） */
+function ZoomPopupCloser() {
+  const map = useMap()
+
+  useEffect(() => {
+    const handler = () => map.closePopup()
+    map.on('zoomstart', handler)
+    return () => { map.off('zoomstart', handler) }
+  }, [map])
 
   return null
 }
@@ -307,6 +331,7 @@ export function Map({ position, forests = [], heading, displayMode = 'distance',
         </Marker>
 
         <MapUpdater position={position} />
+        <ZoomPopupCloser />
         {onBoundsChange && <BoundsWatcher onBoundsChange={onBoundsChange} />}
       </MapContainer>
 
