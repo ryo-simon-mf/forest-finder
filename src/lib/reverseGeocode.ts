@@ -1,9 +1,14 @@
 /**
  * 国土地理院の逆ジオコーディングAPIを使って座標から住所を取得
+ * muniCd（自治体コード）→ 都道府県+市区町村名の変換テーブルを使用して完全な住所を返す
  */
+
+import municipalityMap from '@/data/municipality-map.json'
 
 const GSI_REVERSE_GEOCODE_URL =
   'https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress'
+
+const muniMap = municipalityMap as Record<string, string>
 
 // キャッシュ（座標 → 住所）
 const cache = new Map<string, string>()
@@ -13,7 +18,7 @@ function cacheKey(lat: number, lon: number): string {
 }
 
 /**
- * 座標から住所を取得（国土地理院逆ジオコーディングAPI）
+ * 座標から完全な住所を取得（都道府県+市区町村+町丁目）
  */
 export async function reverseGeocode(
   lat: number,
@@ -32,9 +37,17 @@ export async function reverseGeocode(
       return ''
     }
     const data = await res.json()
-    const address = data.results?.lv01Nm || ''
-    cache.set(key, address)
-    return address
+    const muniCd: string = data.results?.muniCd || ''
+    const lv01Nm: string = data.results?.lv01Nm || ''
+
+    // 自治体コードから都道府県+市区町村名を取得
+    const municipalityName = muniMap[muniCd] || ''
+
+    // 完全な住所を構築: 都道府県+市区町村+町丁目
+    const fullAddress = municipalityName + lv01Nm
+
+    cache.set(key, fullAddress)
+    return fullAddress
   } catch {
     cache.set(key, '')
     return ''
