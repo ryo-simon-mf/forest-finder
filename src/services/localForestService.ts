@@ -21,6 +21,7 @@ async function loadData(): Promise<ForestRecord[]> {
 
 /**
  * ローカルデータから指定位置周辺の森林を検索
+ * 結果が多い場合はグリッドベースでサンプリングし、地理的に分散した結果を返す
  */
 export function searchForestsLocal(
   latitude: number,
@@ -36,7 +37,7 @@ export function searchForestsLocal(
     }
   }
 
-  const forests: ForestArea[] = []
+  const allInRadius: ForestArea[] = []
 
   for (const record of cachedData) {
     const distance = calculateDistance(
@@ -47,7 +48,7 @@ export function searchForestsLocal(
     )
 
     if (distance <= radiusMeters) {
-      forests.push({
+      allInRadius.push({
         id: record.id,
         name: record.name || undefined,
         address: record.address || undefined,
@@ -61,14 +62,52 @@ export function searchForestsLocal(
   }
 
   // 距離でソート
-  forests.sort((a, b) => (a.distance || 0) - (b.distance || 0))
+  allInRadius.sort((a, b) => (a.distance || 0) - (b.distance || 0))
 
-  // 件数制限
-  const limitedForests = forests.slice(0, limit)
+  const nearest = allInRadius.length > 0 ? allInRadius[0] : null
+
+  // 制限内ならそのまま返す
+  if (allInRadius.length <= limit) {
+    return {
+      forests: allInRadius,
+      nearest,
+      searchRadius: radiusMeters,
+    }
+  }
+
+  // グリッドベースの地理的サンプリング
+  // 半径に応じてグリッドサイズを調整
+  const gridCellDeg =
+    radiusMeters > 100_000
+      ? 0.1 // ~10km cells
+      : radiusMeters > 50_000
+        ? 0.05 // ~5km cells
+        : 0.01 // ~1km cells
+
+  const gridMap = new Map<string, ForestArea>()
+
+  for (const forest of allInRadius) {
+    const cellKey = `${Math.floor(forest.center.latitude / gridCellDeg)}_${Math.floor(forest.center.longitude / gridCellDeg)}`
+    // 各セルで最も近い森林を保持
+    const existing = gridMap.get(cellKey)
+    if (!existing || (forest.distance || 0) < (existing.distance || 0)) {
+      gridMap.set(cellKey, forest)
+    }
+  }
+
+  let sampled = Array.from(gridMap.values())
+  sampled.sort((a, b) => (a.distance || 0) - (b.distance || 0))
+  sampled = sampled.slice(0, limit)
+
+  // 最寄りの森林が含まれていることを保証
+  if (nearest && !sampled.find((f) => f.id === nearest.id)) {
+    sampled.pop()
+    sampled.unshift(nearest)
+  }
 
   return {
-    forests: limitedForests,
-    nearest: limitedForests.length > 0 ? limitedForests[0] : null,
+    forests: sampled,
+    nearest,
     searchRadius: radiusMeters,
   }
 }
