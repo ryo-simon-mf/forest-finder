@@ -6,7 +6,7 @@ import { useForestSearch } from '@/hooks/useForestSearch'
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation'
 import { LocationPermission } from '@/components/LocationPermission'
 import { MapWrapper } from '@/components/MapWrapper'
-import { formatDistance } from '@/lib/distance'
+import { formatByMode, type DisplayMode } from '@/lib/distance'
 import {
   searchKokudoForestsLocal,
   preloadKokudoData,
@@ -49,6 +49,8 @@ export default function KokudoPage() {
     dataLoaded ? position : null,
     { searchFn, radiusMeters: 50000 }
   )
+
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('distance')
 
   const watchIdRef = useRef<number | null>(null)
 
@@ -100,7 +102,7 @@ export default function KokudoPage() {
 
   const nearestForest = forestResult?.nearest
   const distanceText = nearestForest?.distance
-    ? formatDistance(nearestForest.distance)
+    ? formatByMode(nearestForest.distance, displayMode)
     : '--'
 
   return (
@@ -121,6 +123,7 @@ export default function KokudoPage() {
             position={position}
             forests={forestResult?.forests || []}
             heading={heading}
+            displayMode={displayMode}
           />
         )}
 
@@ -142,7 +145,15 @@ export default function KokudoPage() {
           <div className="bg-gray-800/95 backdrop-blur rounded-xl p-4 shadow-lg">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-sm">最寄りの森林まで</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-gray-400 text-sm">最寄りの森林まで</p>
+                  <button
+                    onClick={() => setDisplayMode(m => m === 'distance' ? 'walking' : 'distance')}
+                    className="text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
+                  >
+                    {displayMode === 'distance' ? '🚶 徒歩' : '📏 距離'}
+                  </button>
+                </div>
                 <div className="flex items-center gap-2">
                   <p className="text-3xl font-bold text-green-400">
                     {isSearching ? '...' : distanceText}

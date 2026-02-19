@@ -6,7 +6,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { Position } from '@/types/geolocation'
 import type { ForestArea } from '@/types/forest'
-import { formatDistance } from '@/lib/distance'
+import { formatByMode, type DisplayMode } from '@/lib/distance'
 
 // 地図スタイル定義（認証不要のタイルのみ使用）
 const MAP_STYLES = {
@@ -168,6 +168,7 @@ interface MapProps {
   position: Position
   forests?: ForestArea[]
   heading?: number | null
+  displayMode?: DisplayMode
 }
 
 function MapUpdater({ position }: { position: Position }) {
@@ -209,7 +210,7 @@ function StyleSwitcher({
   )
 }
 
-export function Map({ position, forests = [], heading }: MapProps) {
+export function Map({ position, forests = [], heading, displayMode = 'distance' }: MapProps) {
   const [mapStyle, setMapStyle] = useState<MapStyleKey>('standard')
   const nearestForestId = forests.length > 0 ? forests[0].id : null
   const style = MAP_STYLES[mapStyle]
@@ -251,7 +252,7 @@ export function Map({ position, forests = [], heading }: MapProps) {
                 </p>
                 {forest.distance !== undefined && (
                   <p className="text-sm text-gray-600 mt-1">
-                    距離: {formatDistance(forest.distance)}
+                    {formatByMode(forest.distance, displayMode)}
                   </p>
                 )}
                 {forest.id === nearestForestId && (

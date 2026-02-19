@@ -33,3 +33,29 @@ export function formatDistance(meters: number): string {
   }
   return `${(meters / 1000).toFixed(1)}km`
 }
+
+/**
+ * 距離から徒歩時間をフォーマット
+ * 不動産業界基準: 80m/分
+ */
+export function formatWalkingTime(meters: number): string {
+  const minutes = Math.ceil(meters / 80)
+  if (minutes < 60) {
+    return `徒歩${minutes}分`
+  }
+  const hours = Math.floor(minutes / 60)
+  const mins = minutes % 60
+  if (mins === 0) {
+    return `徒歩${hours}時間`
+  }
+  return `徒歩${hours}時間${mins}分`
+}
+
+export type DisplayMode = 'distance' | 'walking'
+
+/**
+ * 表示モードに応じた距離/時間テキストを返す
+ */
+export function formatByMode(meters: number, mode: DisplayMode): string {
+  return mode === 'walking' ? formatWalkingTime(meters) : formatDistance(meters)
+}
