@@ -19,7 +19,7 @@ export function searchForestsLocal(
   latitude: number,
   longitude: number,
   radiusMeters: number = 5000,
-  limit: number = 50
+  limit: number = 200
 ): ForestSearchResult {
   const forests: ForestArea[] = []
 

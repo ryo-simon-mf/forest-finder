@@ -22,8 +22,9 @@ interface MapWrapperProps {
   forests?: ForestArea[]
   heading?: number | null
   displayMode?: DisplayMode
+  onBoundsChange?: (radiusMeters: number) => void
 }
 
-export function MapWrapper({ position, forests = [], heading, displayMode = 'distance' }: MapWrapperProps) {
-  return <Map position={position} forests={forests} heading={heading} displayMode={displayMode} />
+export function MapWrapper({ position, forests = [], heading, displayMode = 'distance', onBoundsChange }: MapWrapperProps) {
+  return <Map position={position} forests={forests} heading={heading} displayMode={displayMode} onBoundsChange={onBoundsChange} />
 }

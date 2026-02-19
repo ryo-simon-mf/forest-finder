@@ -1,12 +1,14 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useGeolocation } from '@/hooks/useGeolocation'
 import { useForestSearch } from '@/hooks/useForestSearch'
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation'
 import { LocationPermission } from '@/components/LocationPermission'
 import { MapWrapper } from '@/components/MapWrapper'
 import { formatByMode, type DisplayMode } from '@/lib/distance'
+
+const MIN_RADIUS = 5000
 
 export default function Home() {
   const {
@@ -24,9 +26,14 @@ export default function Home() {
     requestPermission: requestOrientationPermission,
   } = useDeviceOrientation()
 
-  const { result: forestResult, isLoading: isSearching } = useForestSearch(position)
+  const [mapRadius, setMapRadius] = useState(MIN_RADIUS)
+  const radiusMeters = Math.max(MIN_RADIUS, mapRadius)
+
+  const { result: forestResult, isLoading: isSearching } = useForestSearch(position, { radiusMeters })
 
   const [displayMode, setDisplayMode] = useState<DisplayMode>('distance')
+
+  const handleBoundsChange = useCallback((r: number) => setMapRadius(r), [])
 
   const watchIdRef = useRef<number | null>(null)
 
@@ -72,6 +79,7 @@ export default function Home() {
             forests={forestResult?.forests || []}
             heading={heading}
             displayMode={displayMode}
+            onBoundsChange={handleBoundsChange}
           />
         )}
 

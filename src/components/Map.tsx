@@ -169,6 +169,7 @@ interface MapProps {
   forests?: ForestArea[]
   heading?: number | null
   displayMode?: DisplayMode
+  onBoundsChange?: (radiusMeters: number) => void
 }
 
 function MapUpdater({ position }: { position: Position }) {
@@ -177,6 +178,31 @@ function MapUpdater({ position }: { position: Position }) {
   useEffect(() => {
     map.setView([position.latitude, position.longitude], map.getZoom())
   }, [map, position.latitude, position.longitude])
+
+  return null
+}
+
+function BoundsWatcher({ onBoundsChange }: { onBoundsChange: (radiusMeters: number) => void }) {
+  const map = useMap()
+
+  useEffect(() => {
+    const handler = () => {
+      const bounds = map.getBounds()
+      const center = bounds.getCenter()
+      const ne = bounds.getNorthEast()
+      const radius = center.distanceTo(ne)
+      onBoundsChange(radius)
+    }
+
+    handler()
+    map.on('zoomend', handler)
+    map.on('moveend', handler)
+
+    return () => {
+      map.off('zoomend', handler)
+      map.off('moveend', handler)
+    }
+  }, [map, onBoundsChange])
 
   return null
 }
@@ -210,7 +236,7 @@ function StyleSwitcher({
   )
 }
 
-export function Map({ position, forests = [], heading, displayMode = 'distance' }: MapProps) {
+export function Map({ position, forests = [], heading, displayMode = 'distance', onBoundsChange }: MapProps) {
   const [mapStyle, setMapStyle] = useState<MapStyleKey>('standard')
   const nearestForestId = forests.length > 0 ? forests[0].id : null
   const style = MAP_STYLES[mapStyle]
@@ -281,6 +307,7 @@ export function Map({ position, forests = [], heading, displayMode = 'distance' 
         </Marker>
 
         <MapUpdater position={position} />
+        {onBoundsChange && <BoundsWatcher onBoundsChange={onBoundsChange} />}
       </MapContainer>
 
       <StyleSwitcher currentStyle={mapStyle} onStyleChange={setMapStyle} />

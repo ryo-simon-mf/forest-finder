@@ -38,6 +38,7 @@ export function useForestSearch(
   const [error, setError] = useState<string | null>(null)
 
   const lastSearchPositionRef = useRef<Position | null>(null)
+  const lastRadiusRef = useRef<number>(radiusMeters)
 
   const doSearch = useCallback(
     (pos: Position) => {
@@ -88,6 +89,13 @@ export function useForestSearch(
   useEffect(() => {
     if (!position) return
 
+    // 検索半径が変わった場合は再検索
+    if (lastRadiusRef.current !== radiusMeters) {
+      lastRadiusRef.current = radiusMeters
+      doSearch(position)
+      return
+    }
+
     const lastPos = lastSearchPositionRef.current
 
     // 初回検索
@@ -108,7 +116,7 @@ export function useForestSearch(
     if (distance >= minDistanceChange) {
       doSearch(position)
     }
-  }, [position, minDistanceChange, doSearch])
+  }, [position, minDistanceChange, doSearch, radiusMeters])
 
   return { result, isLoading, error, refresh }
 }

@@ -13,6 +13,8 @@ import {
   isKokudoDataLoaded,
 } from '@/services/kokudoForestService'
 
+const MIN_RADIUS = 50000
+
 export default function KokudoPage() {
   const [dataLoaded, setDataLoaded] = useState(isKokudoDataLoaded())
 
@@ -45,12 +47,17 @@ export default function KokudoPage() {
     []
   )
 
+  const [mapRadius, setMapRadius] = useState(MIN_RADIUS)
+  const radiusMeters = Math.max(MIN_RADIUS, mapRadius)
+
   const { result: forestResult, isLoading: isSearching } = useForestSearch(
     dataLoaded ? position : null,
-    { searchFn, radiusMeters: 50000 }
+    { searchFn, radiusMeters }
   )
 
   const [displayMode, setDisplayMode] = useState<DisplayMode>('distance')
+
+  const handleBoundsChange = useCallback((r: number) => setMapRadius(r), [])
 
   const watchIdRef = useRef<number | null>(null)
 
@@ -124,6 +131,7 @@ export default function KokudoPage() {
             forests={forestResult?.forests || []}
             heading={heading}
             displayMode={displayMode}
+            onBoundsChange={handleBoundsChange}
           />
         )}
 
