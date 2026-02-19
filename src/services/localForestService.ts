@@ -76,13 +76,9 @@ export function searchForestsLocal(
   }
 
   // グリッドベースの地理的サンプリング
-  // 半径に応じてグリッドサイズを調整
-  const gridCellDeg =
-    radiusMeters > 100_000
-      ? 0.1 // ~10km cells
-      : radiusMeters > 50_000
-        ? 0.05 // ~5km cells
-        : 0.01 // ~1km cells
+  // 半径から動的にグリッドサイズを計算し、約limit個のセルが得られるようにする
+  const radiusDeg = radiusMeters / 111_000
+  const gridCellDeg = Math.max(0.01, (2 * radiusDeg) / Math.sqrt(limit))
 
   const gridMap = new Map<string, ForestArea>()
 
@@ -95,14 +91,11 @@ export function searchForestsLocal(
     }
   }
 
-  let sampled = Array.from(gridMap.values())
-  sampled.sort((a, b) => (a.distance || 0) - (b.distance || 0))
-  sampled = sampled.slice(0, limit)
+  const sampled = Array.from(gridMap.values())
 
   // 最寄りの森林が含まれていることを保証
   if (nearest && !sampled.find((f) => f.id === nearest.id)) {
-    sampled.pop()
-    sampled.unshift(nearest)
+    sampled.push(nearest)
   }
 
   return {

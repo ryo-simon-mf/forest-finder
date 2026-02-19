@@ -76,12 +76,8 @@ export function searchKokudoForestsLocal(
   }
 
   // グリッドベースの地理的サンプリング
-  const gridCellDeg =
-    radiusMeters > 100_000
-      ? 0.1
-      : radiusMeters > 50_000
-        ? 0.05
-        : 0.01
+  const radiusDeg = radiusMeters / 111_000
+  const gridCellDeg = Math.max(0.01, (2 * radiusDeg) / Math.sqrt(limit))
 
   const gridMap = new Map<string, ForestArea>()
 
@@ -93,13 +89,10 @@ export function searchKokudoForestsLocal(
     }
   }
 
-  let sampled = Array.from(gridMap.values())
-  sampled.sort((a, b) => (a.distance || 0) - (b.distance || 0))
-  sampled = sampled.slice(0, limit)
+  const sampled = Array.from(gridMap.values())
 
   if (nearest && !sampled.find((f) => f.id === nearest.id)) {
-    sampled.pop()
-    sampled.unshift(nearest)
+    sampled.push(nearest)
   }
 
   return {
