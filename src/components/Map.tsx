@@ -25,6 +25,11 @@ const MAP_STYLES = {
     url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
     attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
   },
+  light: {
+    name: 'ライト',
+    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+  },
   dark: {
     name: 'ダーク',
     url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
@@ -238,7 +243,7 @@ function StyleSwitcher({
 }
 
 export function Map({ position, forests = [], heading, displayMode = 'distance', onBoundsChange }: MapProps) {
-  const [mapStyle, setMapStyle] = useState<MapStyleKey>('standard')
+  const [mapStyle, setMapStyle] = useState<MapStyleKey>('light')
   const nearestForestId = forests.length > 0 ? forests[0].id : null
   const style = MAP_STYLES[mapStyle]
 
