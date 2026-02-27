@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, Polyline, AttributionControl, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { Position } from '@/types/geolocation'
@@ -179,6 +179,7 @@ interface MapProps {
   heading?: number | null
   displayMode?: DisplayMode
   onBoundsChange?: (radiusMeters: number) => void
+  route?: [number, number][]
 }
 
 function MapUpdater({ position }: { position: Position }) {
@@ -217,7 +218,7 @@ function BoundsWatcher({ onBoundsChange }: { onBoundsChange: (radiusMeters: numb
   return null
 }
 
-export function Map({ position, forests = [], heading, displayMode = 'distance', onBoundsChange }: MapProps) {
+export function Map({ position, forests = [], heading, displayMode = 'distance', onBoundsChange, route }: MapProps) {
   const [mapStyle] = useState<MapStyleKey>('light')
   const nearestForestId = forests.length > 0 ? forests[0].id : null
   const style = MAP_STYLES[mapStyle]
@@ -234,13 +235,29 @@ export function Map({ position, forests = [], heading, displayMode = 'distance',
         zoom={14}
         className="h-full w-full"
         zoomControl={false}
+        attributionControl={false}
       >
+        <AttributionControl position="bottomright" prefix='<a href="https://leafletjs.com">Leaflet</a>' />
         <TileLayer
           key={mapStyle}
           attribution={style.attribution}
           url={style.url}
           maxZoom={18}
         />
+
+        {/* 徒歩ルート */}
+        {route && route.length > 0 && (
+          <Polyline
+            positions={route}
+            pathOptions={{
+              color: 'rgba(27, 172, 83, 1)',
+              weight: 4,
+              opacity: 0.8,
+              dashArray: '8, 12',
+              dashOffset: '0',
+            }}
+          />
+        )}
 
         {/* 森林マーカー */}
         {forests.map((forest) => (

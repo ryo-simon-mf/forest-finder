@@ -4,7 +4,9 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useGeolocation } from '@/hooks/useGeolocation'
 import { useForestSearch } from '@/hooks/useForestSearch'
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation'
+import { useRoute } from '@/hooks/useRoute'
 import { LocationPermission } from '@/components/LocationPermission'
+import { LoadingScreen } from '@/components/LoadingScreen'
 import { MapWrapper } from '@/components/MapWrapper'
 import { formatDistance, getEstimatedArrivalTime } from '@/lib/distance'
 import iconImg from '@/img/icon.png'
@@ -56,6 +58,8 @@ export default function Home() {
     { searchFn, radiusMeters }
   )
 
+  const { route, isLoading: isRouteLoading } = useRoute(position, forestResult?.nearest ?? null)
+
   // 半径を量子化（2のべき乗に丸め）して微小変化による再検索を防止
   const handleBoundsChange = useCallback((r: number) => {
     const quantized = Math.pow(2, Math.round(Math.log2(r)))
@@ -89,22 +93,11 @@ export default function Home() {
 
   // データ読み込み中
   if (!dataLoaded) {
-    return (
-      <main className="h-screen flex flex-col bg-forest text-white">
-        <header className="bg-forest px-4 py-3 flex-shrink-0">
-          <h1 className="text-xl font-bold text-white">Forest Finder</h1>
-        </header>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent mx-auto mb-4" />
-            <p className="text-white/80">森林データを読み込み中...</p>
-          </div>
-        </div>
-      </main>
-    )
+    return <LoadingScreen />
   }
 
   const nearestForest = forestResult?.nearest
+
   const distanceText = nearestForest?.distance
     ? formatDistance(nearestForest.distance)
     : '--'
@@ -126,6 +119,8 @@ export default function Home() {
             forests={forestResult?.forests || []}
             heading={heading}
             onBoundsChange={handleBoundsChange}
+            route={route ?? undefined}
+            isRouteLoading={isRouteLoading}
           />
         )}
 

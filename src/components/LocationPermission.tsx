@@ -21,23 +21,29 @@ export function LocationPermission({
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-forest text-white p-6">
       <div className="max-w-md w-full text-center">
-        <div className="mb-8">
-          <img src={iconImg.src} alt="Forest Finder" className="h-24 w-auto mx-auto" />
+        <div className="mb-6">
+          <img src={iconImg.src} alt="" className="h-32 w-auto mx-auto" />
         </div>
 
-        <h1 className="text-2xl font-bold mb-4">Forest Finder</h1>
+        <h1 className="text-3xl font-bold mb-6">かかりつけの森</h1>
+
+        <p className="text-white/90 text-base leading-relaxed mb-10">
+          森はストレスの特効薬です。
+          <br />
+          お疲れのあなた、お近くの森林へ。
+        </p>
 
         {status === 'idle' && (
           <>
-            <p className="text-white/80 mb-8">
-              近くの森林を見つけるために、位置情報の許可が必要です
-            </p>
             <button
               onClick={onRequestPermission}
-              className="w-full bg-white text-forest-dark font-semibold py-4 px-6 rounded-xl transition-colors hover:bg-white/90"
+              className="bg-white text-forest-dark font-semibold py-3 px-10 rounded-lg transition-colors hover:bg-white/90 text-lg"
             >
-              位置情報を許可する
+              <span className="mr-2">&#x1F50D;</span>検索する
             </button>
+            <p className="text-white/70 text-sm mt-4">
+              ※位置情報の許可が必要です。
+            </p>
           </>
         )}
 
@@ -58,7 +64,7 @@ export function LocationPermission({
             </p>
             <button
               onClick={onRequestPermission}
-              className="w-full bg-white/20 hover:bg-white/30 text-white font-semibold py-4 px-6 rounded-xl transition-colors"
+              className="bg-white/20 hover:bg-white/30 text-white font-semibold py-3 px-10 rounded-lg transition-colors text-lg"
             >
               再試行
             </button>
@@ -72,7 +78,7 @@ export function LocationPermission({
             </div>
             <button
               onClick={onRequestPermission}
-              className="w-full bg-white text-forest-dark font-semibold py-4 px-6 rounded-xl transition-colors hover:bg-white/90"
+              className="bg-white text-forest-dark font-semibold py-3 px-10 rounded-lg transition-colors hover:bg-white/90 text-lg"
             >
               再試行
             </button>

@@ -23,8 +23,19 @@ interface MapWrapperProps {
   heading?: number | null
   displayMode?: DisplayMode
   onBoundsChange?: (radiusMeters: number) => void
+  route?: [number, number][]
+  isRouteLoading?: boolean
 }
 
-export function MapWrapper({ position, forests = [], heading, displayMode = 'distance', onBoundsChange }: MapWrapperProps) {
-  return <Map position={position} forests={forests} heading={heading} displayMode={displayMode} onBoundsChange={onBoundsChange} />
+export function MapWrapper({ position, forests = [], heading, displayMode = 'distance', onBoundsChange, route, isRouteLoading }: MapWrapperProps) {
+  return (
+    <div className="h-full w-full relative">
+      <Map position={position} forests={forests} heading={heading} displayMode={displayMode} onBoundsChange={onBoundsChange} route={route} />
+      {isRouteLoading && (
+        <div className="absolute top-3 right-3 z-[1000] bg-white/90 rounded-full p-2 shadow">
+          <div className="animate-spin h-5 w-5 border-2 border-forest border-t-transparent rounded-full" />
+        </div>
+      )}
+    </div>
+  )
 }
