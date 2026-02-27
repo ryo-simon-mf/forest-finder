@@ -11,6 +11,10 @@ const config: Config = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+        forest: {
+          DEFAULT: "rgba(27, 172, 83, 1)",
+          dark: "rgba(20, 140, 67, 1)",
+        },
       },
     },
   },

@@ -28,8 +28,8 @@ export function LocationDisplay({ position }: LocationDisplayProps) {
   return (
     <div className="bg-gray-800 rounded-xl p-4 mb-4">
       <div className="flex items-center gap-2 mb-3">
-        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
-        <span className="text-green-400 font-medium">位置情報取得中</span>
+        <div className="w-3 h-3 bg-forest rounded-full animate-pulse" />
+        <span className="text-forest font-medium">位置情報取得中</span>
       </div>
       <div className="grid grid-cols-2 gap-4 text-sm">
         <div>

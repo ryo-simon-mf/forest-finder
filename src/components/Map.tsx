@@ -7,6 +7,7 @@ import 'leaflet/dist/leaflet.css'
 import type { Position } from '@/types/geolocation'
 import type { ForestArea } from '@/types/forest'
 import { formatByMode, type DisplayMode } from '@/lib/distance'
+import iconImg from '@/img/icon.png'
 
 // 地図スタイル定義（認証不要のタイルのみ使用）
 const MAP_STYLES = {
@@ -125,22 +126,23 @@ const createDirectionalIcon = (heading: number) => L.divIcon({
   iconAnchor: [40, 40],
 })
 
-// 森林用のカスタムアイコン
+// 森林用のカスタムアイコン（白みがかった緑）
 const ForestIcon = L.divIcon({
   className: 'forest-marker',
   html: `
     <div style="
       width: 24px;
       height: 24px;
-      background-color: #22c55e;
-      border: 2px solid white;
-      border-radius: 4px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-    ">🌲</div>
+      background-color: rgba(27, 172, 83, 0.4);
+      -webkit-mask-image: url(${iconImg.src});
+      mask-image: url(${iconImg.src});
+      -webkit-mask-size: contain;
+      mask-size: contain;
+      -webkit-mask-repeat: no-repeat;
+      mask-repeat: no-repeat;
+      -webkit-mask-position: center;
+      mask-position: center;
+    "></div>
   `,
   iconSize: [24, 24],
   iconAnchor: [12, 12],
@@ -153,15 +155,17 @@ const NearestForestIcon = L.divIcon({
     <div style="
       width: 32px;
       height: 32px;
-      background-color: #16a34a;
-      border: 3px solid #fbbf24;
-      border-radius: 4px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-    ">🌲</div>
+      background-color: rgba(27, 172, 83, 1);
+      -webkit-mask-image: url(${iconImg.src});
+      mask-image: url(${iconImg.src});
+      -webkit-mask-size: contain;
+      mask-size: contain;
+      -webkit-mask-repeat: no-repeat;
+      mask-repeat: no-repeat;
+      -webkit-mask-position: center;
+      mask-position: center;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    "></div>
   `,
   iconSize: [32, 32],
   iconAnchor: [16, 16],
@@ -213,37 +217,8 @@ function BoundsWatcher({ onBoundsChange }: { onBoundsChange: (radiusMeters: numb
   return null
 }
 
-// スタイル切り替えボタン
-function StyleSwitcher({
-  currentStyle,
-  onStyleChange,
-}: {
-  currentStyle: MapStyleKey
-  onStyleChange: (style: MapStyleKey) => void
-}) {
-  return (
-    <div className="absolute top-3 right-3 z-[1000]">
-      <div className="bg-gray-800/90 backdrop-blur rounded-lg p-1 flex gap-1">
-        {(Object.keys(MAP_STYLES) as MapStyleKey[]).map((key) => (
-          <button
-            key={key}
-            onClick={() => onStyleChange(key)}
-            className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-              currentStyle === key
-                ? 'bg-green-600 text-white'
-                : 'text-gray-300 hover:bg-gray-700'
-            }`}
-          >
-            {MAP_STYLES[key].name}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 export function Map({ position, forests = [], heading, displayMode = 'distance', onBoundsChange }: MapProps) {
-  const [mapStyle, setMapStyle] = useState<MapStyleKey>('light')
+  const [mapStyle] = useState<MapStyleKey>('light')
   const nearestForestId = forests.length > 0 ? forests[0].id : null
   const style = MAP_STYLES[mapStyle]
 
@@ -276,7 +251,7 @@ export function Map({ position, forests = [], heading, displayMode = 'distance',
           >
             <Popup>
               <div className="text-center min-w-[140px]">
-                <p className="font-bold text-green-700">
+                <p className="font-bold text-forest-dark">
                   {forest.name || '森林'}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
@@ -316,7 +291,7 @@ export function Map({ position, forests = [], heading, displayMode = 'distance',
         {onBoundsChange && <BoundsWatcher onBoundsChange={onBoundsChange} />}
       </MapContainer>
 
-      <StyleSwitcher currentStyle={mapStyle} onStyleChange={setMapStyle} />
+      {/* <StyleSwitcher currentStyle={mapStyle} onStyleChange={setMapStyle} /> */}
     </div>
   )
 }

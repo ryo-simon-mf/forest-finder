@@ -6,7 +6,8 @@ import { useForestSearch } from '@/hooks/useForestSearch'
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation'
 import { LocationPermission } from '@/components/LocationPermission'
 import { MapWrapper } from '@/components/MapWrapper'
-import { formatByMode, type DisplayMode } from '@/lib/distance'
+import { formatDistance, getEstimatedArrivalTime } from '@/lib/distance'
+import iconImg from '@/img/icon.png'
 import {
   searchKokudoForestsLocal,
   preloadKokudoData,
@@ -55,8 +56,6 @@ export default function KokudoPage() {
     { searchFn, radiusMeters }
   )
 
-  const [displayMode, setDisplayMode] = useState<DisplayMode>('distance')
-
   // 半径を量子化（2のべき乗に丸め）して微小変化による再検索を防止
   const handleBoundsChange = useCallback((r: number) => {
     const quantized = Math.pow(2, Math.round(Math.log2(r)))
@@ -91,20 +90,20 @@ export default function KokudoPage() {
   // データ読み込み中
   if (!dataLoaded) {
     return (
-      <main className="h-screen flex flex-col bg-gray-900 text-white">
-        <header className="bg-gray-800 border-b border-gray-700 px-4 py-3 flex-shrink-0">
-          <h1 className="text-xl font-bold text-green-400">
+      <main className="h-screen flex flex-col bg-forest text-white">
+        <header className="bg-forest px-4 py-3 flex-shrink-0">
+          <h1 className="text-xl font-bold text-white">
             Forest Finder
-            <span className="text-sm font-normal text-gray-400 ml-2">
+            <span className="text-sm font-normal text-white/60 ml-2">
               国土数値情報版
             </span>
           </h1>
         </header>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-500 border-t-transparent mx-auto mb-4" />
-            <p className="text-gray-400">森林データを読み込み中...</p>
-            <p className="text-gray-500 text-sm mt-1">（約125,000件）</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent mx-auto mb-4" />
+            <p className="text-white/80">森林データを読み込み中...</p>
+            <p className="text-white/60 text-sm mt-1">（約125,000件）</p>
           </div>
         </div>
       </main>
@@ -113,15 +112,18 @@ export default function KokudoPage() {
 
   const nearestForest = forestResult?.nearest
   const distanceText = nearestForest?.distance
-    ? formatByMode(nearestForest.distance, displayMode)
+    ? formatDistance(nearestForest.distance)
     : '--'
+  const arrivalText = nearestForest?.distance
+    ? getEstimatedArrivalTime(nearestForest.distance)
+    : ''
 
   return (
-    <main className="h-screen flex flex-col bg-gray-900 text-white">
-      <header className="bg-gray-800 border-b border-gray-700 px-4 py-3 flex-shrink-0">
-        <h1 className="text-xl font-bold text-green-400">
+    <main className="h-screen flex flex-col bg-forest text-white">
+      <header className="bg-forest px-4 py-3 flex-shrink-0">
+        <h1 className="text-xl font-bold text-white">
           Forest Finder
-          <span className="text-sm font-normal text-gray-400 ml-2">
+          <span className="text-sm font-normal text-white/60 ml-2">
             国土数値情報版
           </span>
         </h1>
@@ -134,7 +136,6 @@ export default function KokudoPage() {
             position={position}
             forests={forestResult?.forests || []}
             heading={heading}
-            displayMode={displayMode}
             onBoundsChange={handleBoundsChange}
           />
         )}
@@ -152,58 +153,28 @@ export default function KokudoPage() {
           </div>
         )}
 
-        {/* 距離表示オーバーレイ */}
-        <div className="absolute bottom-4 left-4 right-4 z-[1000]">
-          <div className="bg-gray-800/95 backdrop-blur rounded-xl p-4 shadow-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="text-gray-400 text-sm">最寄りの森林まで</p>
-                  <button
-                    onClick={() => setDisplayMode(m => m === 'distance' ? 'walking' : 'distance')}
-                    className="text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
-                  >
-                    {displayMode === 'distance' ? '🚶 徒歩' : '📏 距離'}
-                  </button>
+        {/* 最寄り森林カード */}
+        {nearestForest && (
+          <div className="absolute bottom-4 left-4 right-4 z-[1000]">
+            <div className="bg-forest rounded-2xl px-6 py-5 shadow-lg">
+              <div className="flex items-center">
+                <div className="flex-1 basis-0 min-w-0 text-center">
+                  <img src={iconImg.src} alt="" className="h-16 w-auto mb-2 mx-auto" />
+                  <p className="text-white font-bold text-xl leading-snug">
+                    {nearestForest.address || '住所を取得中...'}
+                  </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <p className="text-3xl font-bold text-green-400">
+                <div className="border-l border-white/40 pl-5 ml-5 flex-1 basis-0 text-center">
+                  <p className="text-white/80 text-base">現在地から</p>
+                  <p className="text-white font-extrabold text-6xl leading-none my-1">
                     {isSearching ? '...' : distanceText}
                   </p>
-                  {isSearching && (
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-green-500 border-t-transparent" />
-                  )}
+                  <p className="text-white/80 text-base">{arrivalText}</p>
                 </div>
-                {nearestForest && (
-                  <div className="text-gray-500 text-sm mt-1">
-                    {nearestForest.name && <p>{nearestForest.name}</p>}
-                    <p className="text-gray-600 text-xs">
-                      📍 {nearestForest.address || '住所を取得中...'}
-                    </p>
-                  </div>
-                )}
-              </div>
-              <div className="text-right text-sm">
-                {position && (
-                  <>
-                    <p className="text-gray-500">精度</p>
-                    <p className="text-white">±{Math.round(position.accuracy)}m</p>
-                  </>
-                )}
-                {heading !== null && (
-                  <p className="text-gray-400 mt-1">
-                    🧭 {Math.round(heading)}°
-                  </p>
-                )}
-                {forestResult && (
-                  <p className="text-gray-500 mt-1">
-                    {forestResult.forests.length}件の森林
-                  </p>
-                )}
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </main>
   )

@@ -59,3 +59,17 @@ export type DisplayMode = 'distance' | 'walking'
 export function formatByMode(meters: number, mode: DisplayMode): string {
   return mode === 'walking' ? formatWalkingTime(meters) : formatDistance(meters)
 }
+
+/**
+ * 距離から到着予定時刻を計算して返す
+ * 徒歩速度: 80m/分（不動産業界基準）
+ * @returns "HH:MMに到着" 形式の文字列
+ */
+export function getEstimatedArrivalTime(meters: number): string {
+  const minutes = Math.ceil(meters / 80)
+  const now = new Date()
+  now.setMinutes(now.getMinutes() + minutes)
+  const hh = String(now.getHours()).padStart(2, '0')
+  const mm = String(now.getMinutes()).padStart(2, '0')
+  return `${hh}:${mm}に到着`
+}
