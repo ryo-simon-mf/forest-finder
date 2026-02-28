@@ -21,15 +21,9 @@ const MIN_RADIUS = 50000
 const MIN_LOADING_MS = 5000
 
 export default function KokudoPage() {
+  const [started, setStarted] = useState(false)
   const [dataLoaded, setDataLoaded] = useState(isKokudoDataLoaded())
-  const [minTimeElapsed, setMinTimeElapsed] = useState(isKokudoDataLoaded())
-
-  useEffect(() => {
-    const timer = setTimeout(() => setMinTimeElapsed(true), MIN_LOADING_MS)
-    return () => clearTimeout(timer)
-  }, [])
-
-  const showMap = dataLoaded && minTimeElapsed
+  const [minTimeElapsed, setMinTimeElapsed] = useState(false)
 
   const {
     status,
@@ -46,12 +40,17 @@ export default function KokudoPage() {
     requestPermission: requestOrientationPermission,
   } = useDeviceOrientation()
 
-  // データの事前読み込み
-  useEffect(() => {
+  // 「検索する」タップ時: 位置情報許可 + データ読み込み + 最低表示タイマーを同時開始
+  const handleStart = useCallback(() => {
+    setStarted(true)
+    requestPermission()
     if (!dataLoaded) {
       preloadKokudoData().then(() => setDataLoaded(true))
     }
-  }, [dataLoaded])
+    setTimeout(() => setMinTimeElapsed(true), MIN_LOADING_MS)
+  }, [requestPermission, dataLoaded])
+
+  const isReady = started && status === 'granted' && dataLoaded && minTimeElapsed
 
   const searchFn = useCallback(
     (lat: number, lon: number, radius?: number, limit?: number) => {
@@ -97,18 +96,19 @@ export default function KokudoPage() {
     }
   }, [status, startWatching, stopWatching])
 
-  if (status !== 'granted') {
+  // まだ開始していない or 拒否/エラー → ランディング画面
+  if (!started || status === 'denied' || status === 'unavailable' || status === 'error') {
     return (
       <LocationPermission
         status={status}
         error={error}
-        onRequestPermission={requestPermission}
+        onRequestPermission={handleStart}
       />
     )
   }
 
-  // データ読み込み中 or 最低表示時間待ち
-  if (!showMap) {
+  // 開始済みだがまだ準備完了していない → ローディング画面
+  if (!isReady) {
     return <LoadingScreen />
   }
 
