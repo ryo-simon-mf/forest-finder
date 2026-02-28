@@ -146,7 +146,7 @@ export default function Home() {
 
         {/* 最寄り森林カード */}
         {nearestForest && (
-          <div className="absolute bottom-4 left-4 right-4 z-[1000]">
+          <div className="fixed bottom-0 left-0 right-0 z-[1000] px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
             <div className="bg-forest rounded-2xl px-6 py-5 shadow-lg">
               <div className="flex items-center">
                 <div className="flex-1 basis-0 min-w-0 text-center">
