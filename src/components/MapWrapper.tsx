@@ -25,12 +25,13 @@ interface MapWrapperProps {
   onBoundsChange?: (radiusMeters: number) => void
   route?: [number, number][]
   isRouteLoading?: boolean
+  onForestSelect?: (forest: ForestArea) => void
 }
 
-export function MapWrapper({ position, forests = [], heading, displayMode = 'distance', onBoundsChange, route, isRouteLoading }: MapWrapperProps) {
+export function MapWrapper({ position, forests = [], heading, displayMode = 'distance', onBoundsChange, route, isRouteLoading, onForestSelect }: MapWrapperProps) {
   return (
     <div className="h-full w-full relative">
-      <Map position={position} forests={forests} heading={heading} displayMode={displayMode} onBoundsChange={onBoundsChange} route={route} />
+      <Map position={position} forests={forests} heading={heading} displayMode={displayMode} onBoundsChange={onBoundsChange} route={route} onForestSelect={onForestSelect} />
       {isRouteLoading && (
         <div className="absolute top-3 right-3 z-[1000] bg-white/90 rounded-full p-2 shadow">
           <div className="animate-spin h-5 w-5 border-2 border-forest border-t-transparent rounded-full" />

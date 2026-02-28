@@ -9,6 +9,7 @@ import { LocationPermission } from '@/components/LocationPermission'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { MapWrapper } from '@/components/MapWrapper'
 import { formatDistance, getEstimatedArrivalTime } from '@/lib/distance'
+import type { ForestArea } from '@/types/forest'
 import iconImg from '@/img/icon.png'
 import {
   searchKokudoForestsLocal,
@@ -67,7 +68,13 @@ export default function KokudoPage() {
     { searchFn, radiusMeters }
   )
 
-  const { route, isLoading: isRouteLoading } = useRoute(position, forestResult?.nearest ?? null)
+  const [selectedForest, setSelectedForest] = useState<ForestArea | null>(null)
+  const routeTarget = selectedForest ?? forestResult?.nearest ?? null
+  const { route, isLoading: isRouteLoading } = useRoute(position, routeTarget)
+
+  const handleForestSelect = useCallback((forest: ForestArea) => {
+    setSelectedForest(forest)
+  }, [])
 
   // 半径を量子化（2のべき乗に丸め）して微小変化による再検索を防止
   const handleBoundsChange = useCallback((r: number) => {
@@ -105,14 +112,14 @@ export default function KokudoPage() {
     return <LoadingScreen />
   }
 
-  const nearestForest = forestResult?.nearest
+  const displayForest = routeTarget
 
-  const walkingMinutes = nearestForest?.distance
-    ? Math.ceil(nearestForest.distance / 80)
+  const walkingMinutes = displayForest?.distance
+    ? Math.ceil(displayForest.distance / 80)
     : null
   const distanceText = walkingMinutes !== null ? `${walkingMinutes}分` : '--'
-  const subText = nearestForest?.distance
-    ? `${formatDistance(nearestForest.distance)}・${getEstimatedArrivalTime(nearestForest.distance).replace('に到着', '')}`
+  const subText = displayForest?.distance
+    ? `${formatDistance(displayForest.distance)}・${getEstimatedArrivalTime(displayForest.distance).replace('に到着', '')}`
     : ''
 
   return (
@@ -127,6 +134,7 @@ export default function KokudoPage() {
             onBoundsChange={handleBoundsChange}
             route={route ?? undefined}
             isRouteLoading={isRouteLoading}
+            onForestSelect={handleForestSelect}
           />
         )}
 
@@ -144,14 +152,14 @@ export default function KokudoPage() {
         )}
 
         {/* 最寄り森林カード */}
-        {nearestForest && (
+        {displayForest && (
           <div className="fixed bottom-0 left-0 right-0 z-[1000] px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
             <div className="bg-forest rounded-2xl px-6 py-5 shadow-lg">
               <div className="flex items-center">
                 <div className="flex-1 basis-0 min-w-0 text-center">
                   <img src={iconImg.src} alt="" className="h-16 w-auto mb-2 mx-auto" />
                   <p className="text-white font-bold text-lg leading-snug">
-                    {nearestForest.address || '住所を取得中...'}
+                    {displayForest.address || '住所を取得中...'}
                   </p>
                 </div>
                 <div className="border-l border-white/40 pl-5 ml-5 flex-1 basis-0 text-center">

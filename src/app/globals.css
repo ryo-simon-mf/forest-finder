@@ -28,3 +28,27 @@ html, body {
     text-wrap: balance;
   }
 }
+
+/* Leaflet森林ポップアップのカスタムスタイル */
+.forest-popup .leaflet-popup-content-wrapper {
+  background: rgba(27, 172, 83, 1);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.forest-popup .leaflet-popup-content {
+  margin: 10px 14px;
+  color: #fff;
+}
+
+.forest-popup .leaflet-popup-tip {
+  background: rgba(27, 172, 83, 1);
+}
+
+.forest-popup .leaflet-popup-close-button {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.forest-popup .leaflet-popup-close-button:hover {
+  color: #fff !important;
+}

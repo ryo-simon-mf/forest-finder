@@ -180,6 +180,7 @@ interface MapProps {
   displayMode?: DisplayMode
   onBoundsChange?: (radiusMeters: number) => void
   route?: [number, number][]
+  onForestSelect?: (forest: ForestArea) => void
 }
 
 function MapUpdater({ position, route }: { position: Position; route?: [number, number][] }) {
@@ -233,7 +234,7 @@ function BoundsWatcher({ onBoundsChange }: { onBoundsChange: (radiusMeters: numb
   return null
 }
 
-export function Map({ position, forests = [], heading, displayMode = 'distance', onBoundsChange, route }: MapProps) {
+export function Map({ position, forests = [], heading, displayMode = 'distance', onBoundsChange, route, onForestSelect }: MapProps) {
   const [mapStyle] = useState<MapStyleKey>('light')
   const nearestForestId = forests.length > 0 ? forests[0].id : null
   const style = MAP_STYLES[mapStyle]
@@ -282,23 +283,16 @@ export function Map({ position, forests = [], heading, displayMode = 'distance',
             key={forest.id}
             position={[forest.center.latitude, forest.center.longitude]}
             icon={forest.id === nearestForestId ? NearestForestIcon : ForestIcon}
+            eventHandlers={onForestSelect ? { click: () => onForestSelect(forest) } : undefined}
           >
-            <Popup>
-              <div className="text-center min-w-[140px]">
-                <p className="font-bold text-forest-dark">
-                  {forest.name || '森林'}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  📍 {forest.address || '住所を取得中...'}
+            <Popup className="forest-popup">
+              <div className="text-center min-w-[120px]">
+                <p className="font-bold text-white text-sm">
+                  {forest.address || '住所を取得中...'}
                 </p>
                 {forest.distance !== undefined && (
-                  <p className="text-sm text-gray-600 mt-1">
-                    {formatByMode(forest.distance, displayMode)}
-                  </p>
-                )}
-                {forest.id === nearestForestId && (
-                  <p className="text-xs text-yellow-600 font-medium mt-1">
-                    ⭐ 最寄り
+                  <p className="text-white/90 text-xs mt-1">
+                    {formatByMode(forest.distance, displayMode)} · 徒歩{Math.ceil(forest.distance / 80)}分
                   </p>
                 )}
               </div>
