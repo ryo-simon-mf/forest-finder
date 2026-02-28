@@ -19,7 +19,7 @@ export function LocationPermission({
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-forest text-white p-6">
+    <div className="flex flex-col items-center justify-center h-[100dvh] bg-forest text-white p-6">
       <div className="max-w-md w-full text-center">
         <div className="mb-6">
           <img src={iconImg.src} alt="" className="h-32 w-auto mx-auto" />

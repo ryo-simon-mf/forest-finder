@@ -116,7 +116,7 @@ export default function Home() {
     : ''
 
   return (
-    <main className="h-screen flex flex-col bg-forest text-white">
+    <main className="h-[100dvh] flex flex-col bg-forest text-white">
       {/* 地図エリア */}
       <div className="flex-1 relative">
         {position && (

@@ -30,7 +30,7 @@ export function LoadingScreen() {
   }, [])
 
   return (
-    <main className="h-screen flex flex-col items-center justify-center bg-forest text-white px-6">
+    <main className="h-[100dvh] flex flex-col items-center justify-center bg-forest text-white px-6">
       <div className="flex flex-col items-center">
         <img src={iconImg.src} alt="" className="h-36 w-auto mb-10" />
 
