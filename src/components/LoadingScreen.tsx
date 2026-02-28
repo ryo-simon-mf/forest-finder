@@ -11,12 +11,20 @@ const TIPS = [
 
 const TIP_INTERVAL = 3000
 
+function randomIndex(exclude: number) {
+  let next: number
+  do {
+    next = Math.floor(Math.random() * TIPS.length)
+  } while (next === exclude && TIPS.length > 1)
+  return next
+}
+
 export function LoadingScreen() {
-  const [tipIndex, setTipIndex] = useState(0)
+  const [tipIndex, setTipIndex] = useState(() => Math.floor(Math.random() * TIPS.length))
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setTipIndex((prev) => (prev + 1) % TIPS.length)
+      setTipIndex((prev) => randomIndex(prev))
     }, TIP_INTERVAL)
     return () => clearInterval(timer)
   }, [])
@@ -27,8 +35,8 @@ export function LoadingScreen() {
         <img src={iconImg.src} alt="" className="h-36 w-auto mb-10" />
 
         {/* プログレスバー */}
-        <div className="w-40 h-1.5 bg-white/30 rounded-full overflow-hidden mb-6">
-          <div className="h-full bg-white rounded-full animate-loading-bar" />
+        <div className="w-40 h-1.5 bg-white/30 overflow-hidden mb-6">
+          <div className="h-full bg-white animate-loading-progress" />
         </div>
 
         {/* 豆知識テキスト */}

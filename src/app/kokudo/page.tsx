@@ -17,9 +17,18 @@ import {
 } from '@/services/kokudoForestService'
 
 const MIN_RADIUS = 50000
+const MIN_LOADING_MS = 5000
 
 export default function KokudoPage() {
   const [dataLoaded, setDataLoaded] = useState(isKokudoDataLoaded())
+  const [minTimeElapsed, setMinTimeElapsed] = useState(isKokudoDataLoaded())
+
+  useEffect(() => {
+    const timer = setTimeout(() => setMinTimeElapsed(true), MIN_LOADING_MS)
+    return () => clearTimeout(timer)
+  }, [])
+
+  const showMap = dataLoaded && minTimeElapsed
 
   const {
     status,
@@ -91,8 +100,8 @@ export default function KokudoPage() {
     )
   }
 
-  // データ読み込み中
-  if (!dataLoaded) {
+  // データ読み込み中 or 最低表示時間待ち
+  if (!showMap) {
     return <LoadingScreen />
   }
 
@@ -107,15 +116,6 @@ export default function KokudoPage() {
 
   return (
     <main className="h-screen flex flex-col bg-forest text-white">
-      <header className="bg-forest px-4 py-3 flex-shrink-0">
-        <h1 className="text-xl font-bold text-white">
-          Forest Finder
-          <span className="text-sm font-normal text-white/60 ml-2">
-            国土数値情報版
-          </span>
-        </h1>
-      </header>
-
       {/* 地図エリア */}
       <div className="flex-1 relative">
         {position && (
@@ -154,11 +154,11 @@ export default function KokudoPage() {
                   </p>
                 </div>
                 <div className="border-l border-white/40 pl-5 ml-5 flex-1 basis-0 text-center">
-                  <p className="text-white/80 text-base">現在地から</p>
+                  <p className="text-white/80 text-base font-bold">現在地から</p>
                   <p className="text-white font-extrabold text-6xl leading-none my-1">
                     {isSearching ? '...' : distanceText}
                   </p>
-                  <p className="text-white/80 text-base">{arrivalText}</p>
+                  <p className="text-white/80 text-base font-bold">{arrivalText}</p>
                 </div>
               </div>
             </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, Polyline, AttributionControl, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -182,12 +182,27 @@ interface MapProps {
   route?: [number, number][]
 }
 
-function MapUpdater({ position }: { position: Position }) {
+function MapUpdater({ position, route }: { position: Position; route?: [number, number][] }) {
   const map = useMap()
+  const fittedRouteRef = useRef<string | null>(null)
 
   useEffect(() => {
-    map.setView([position.latitude, position.longitude], map.getZoom())
-  }, [map, position.latitude, position.longitude])
+    if (route && route.length > 0) {
+      // ルートの識別キー（始点+終点）
+      const key = `${route[0][0]},${route[0][1]}-${route[route.length - 1][0]},${route[route.length - 1][1]}`
+      if (fittedRouteRef.current !== key) {
+        const bounds = L.latLngBounds(route)
+        const mapSize = map.getSize()
+        const bottomPad = Math.round(mapSize.y * 0.25)
+        const sidePad = Math.round(mapSize.x * 0.08)
+        const topPad = Math.round(mapSize.y * 0.08)
+        map.fitBounds(bounds, { paddingTopLeft: [sidePad, topPad], paddingBottomRight: [sidePad, bottomPad], maxZoom: 16 })
+        fittedRouteRef.current = key
+      }
+    } else {
+      map.setView([position.latitude, position.longitude], map.getZoom())
+    }
+  }, [map, position.latitude, position.longitude, route])
 
   return null
 }
@@ -251,10 +266,12 @@ export function Map({ position, forests = [], heading, displayMode = 'distance',
             positions={route}
             pathOptions={{
               color: 'rgba(27, 172, 83, 1)',
-              weight: 4,
+              weight: 6,
               opacity: 0.8,
               dashArray: '8, 12',
               dashOffset: '0',
+              lineJoin: 'miter',
+              lineCap: 'square',
             }}
           />
         )}
@@ -304,7 +321,7 @@ export function Map({ position, forests = [], heading, displayMode = 'distance',
           </Popup>
         </Marker>
 
-        <MapUpdater position={position} />
+        <MapUpdater position={position} route={route} />
         {onBoundsChange && <BoundsWatcher onBoundsChange={onBoundsChange} />}
       </MapContainer>
 

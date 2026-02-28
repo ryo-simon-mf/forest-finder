@@ -17,14 +17,13 @@ const config: Config = {
         },
       },
       keyframes: {
-        'loading-bar': {
-          '0%': { width: '0%', marginLeft: '0%' },
-          '50%': { width: '60%', marginLeft: '20%' },
-          '100%': { width: '0%', marginLeft: '100%' },
+        'loading-progress': {
+          '0%': { width: '0%' },
+          '100%': { width: '100%' },
         },
       },
       animation: {
-        'loading-bar': 'loading-bar 1.5s ease-in-out infinite',
+        'loading-progress': 'loading-progress 5s ease-out forwards',
       },
     },
   },

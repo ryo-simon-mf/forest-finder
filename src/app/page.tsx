@@ -18,8 +18,18 @@ import {
 
 const MIN_RADIUS = 5000
 
+const MIN_LOADING_MS = 5000
+
 export default function Home() {
   const [dataLoaded, setDataLoaded] = useState(isForestDataLoaded())
+  const [minTimeElapsed, setMinTimeElapsed] = useState(isForestDataLoaded())
+
+  useEffect(() => {
+    const timer = setTimeout(() => setMinTimeElapsed(true), MIN_LOADING_MS)
+    return () => clearTimeout(timer)
+  }, [])
+
+  const showMap = dataLoaded && minTimeElapsed
 
   const {
     status,
@@ -91,8 +101,8 @@ export default function Home() {
     )
   }
 
-  // データ読み込み中
-  if (!dataLoaded) {
+  // データ読み込み中 or 最低表示時間待ち
+  if (!showMap) {
     return <LoadingScreen />
   }
 
@@ -107,10 +117,6 @@ export default function Home() {
 
   return (
     <main className="h-screen flex flex-col bg-forest text-white">
-      <header className="bg-forest px-4 py-3 flex-shrink-0">
-        <h1 className="text-xl font-bold text-white">Forest Finder</h1>
-      </header>
-
       {/* 地図エリア */}
       <div className="flex-1 relative">
         {position && (
@@ -149,11 +155,11 @@ export default function Home() {
                   </p>
                 </div>
                 <div className="border-l border-white/40 pl-5 ml-5 flex-1 basis-0 text-center">
-                  <p className="text-white/80 text-base">現在地から</p>
+                  <p className="text-white/80 text-base font-bold">現在地から</p>
                   <p className="text-white font-extrabold text-6xl leading-none my-1">
                     {isSearching ? '...' : distanceText}
                   </p>
-                  <p className="text-white/80 text-base">{arrivalText}</p>
+                  <p className="text-white/80 text-base font-bold">{arrivalText}</p>
                 </div>
               </div>
             </div>
