@@ -108,11 +108,12 @@ export default function Home() {
 
   const nearestForest = forestResult?.nearest
 
-  const distanceText = nearestForest?.distance
-    ? formatDistance(nearestForest.distance)
-    : '--'
-  const arrivalText = nearestForest?.distance
-    ? getEstimatedArrivalTime(nearestForest.distance)
+  const walkingMinutes = nearestForest?.distance
+    ? Math.ceil(nearestForest.distance / 80)
+    : null
+  const distanceText = walkingMinutes !== null ? `${walkingMinutes}分` : '--'
+  const subText = nearestForest?.distance
+    ? `${formatDistance(nearestForest.distance)}・${getEstimatedArrivalTime(nearestForest.distance).replace('に到着', '')}`
     : ''
 
   return (
@@ -150,16 +151,16 @@ export default function Home() {
               <div className="flex items-center">
                 <div className="flex-1 basis-0 min-w-0 text-center">
                   <img src={iconImg.src} alt="" className="h-16 w-auto mb-2 mx-auto" />
-                  <p className="text-white font-bold text-xl leading-snug">
+                  <p className="text-white font-bold text-lg leading-snug">
                     {nearestForest.address || '住所を取得中...'}
                   </p>
                 </div>
                 <div className="border-l border-white/40 pl-5 ml-5 flex-1 basis-0 text-center">
-                  <p className="text-white/80 text-base font-bold">現在地から</p>
+                  <p className="text-white text-base font-bold">現在地から</p>
                   <p className="text-white font-extrabold text-6xl leading-none my-1">
                     {isSearching ? '...' : distanceText}
                   </p>
-                  <p className="text-white/80 text-base font-bold">{arrivalText}</p>
+                  <p className="text-white text-base font-bold">{subText}</p>
                 </div>
               </div>
             </div>
