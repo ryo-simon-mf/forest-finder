@@ -291,7 +291,7 @@ export function Map({ position, forests = [], heading, displayMode = 'distance',
                   {forest.address || '住所を取得中...'}
                 </p>
                 {forest.distance !== undefined && (
-                  <p className="text-white/90 text-xs mt-1">
+                  <p className="text-white/90 text-xs mt-1 font-bold">
                     {formatByMode(forest.distance, displayMode)} · 徒歩{Math.ceil(forest.distance / 80)}分
                   </p>
                 )}
