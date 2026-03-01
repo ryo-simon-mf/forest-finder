@@ -14,8 +14,16 @@ let cachedData: ForestRecord[] | null = null
 
 async function loadData(): Promise<ForestRecord[]> {
   if (cachedData) return cachedData
-  const mod = await import('@/data/japan-forests.json')
-  cachedData = mod.default as ForestRecord[]
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
+  const res = await fetch(`${basePath}/data/japan-forests.json`)
+  const raw = (await res.json()) as [string, number, number][]
+  cachedData = raw.map(([id, lat, lon]) => ({
+    id: id.replace(/^w/, 'way-').replace(/^n/, 'node-').replace(/^r/, 'relation-'),
+    name: '',
+    latitude: lat,
+    longitude: lon,
+    address: '',
+  }))
   return cachedData
 }
 
