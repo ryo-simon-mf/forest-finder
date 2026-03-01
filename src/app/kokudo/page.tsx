@@ -36,7 +36,6 @@ export default function KokudoPage() {
 
   const {
     heading,
-    permissionState: orientationPermission,
     requestPermission: requestOrientationPermission,
   } = useDeviceOrientation()
 
@@ -44,11 +43,12 @@ export default function KokudoPage() {
   const handleStart = useCallback(() => {
     setStarted(true)
     requestPermission()
+    requestOrientationPermission()
     if (!dataLoaded) {
       preloadKokudoData().then(() => setDataLoaded(true))
     }
     setTimeout(() => setMinTimeElapsed(true), MIN_LOADING_MS)
-  }, [requestPermission, dataLoaded])
+  }, [requestPermission, requestOrientationPermission, dataLoaded])
 
   const isReady = started && status === 'granted' && dataLoaded && minTimeElapsed
 
@@ -136,19 +136,6 @@ export default function KokudoPage() {
             isRouteLoading={isRouteLoading}
             onForestSelect={handleForestSelect}
           />
-        )}
-
-        {/* iOS用コンパス許可ボタン */}
-        {orientationPermission === 'prompt' && (
-          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[1000]">
-            <button
-              onClick={requestOrientationPermission}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm"
-            >
-              <span>🧭</span>
-              <span>コンパスを有効にする</span>
-            </button>
-          </div>
         )}
 
         {/* 最寄り森林カード */}
