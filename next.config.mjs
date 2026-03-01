@@ -3,8 +3,8 @@ import withPWA from 'next-pwa'
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export',
-  basePath: process.env.NODE_ENV === 'production' ? '/forest-finder' : '',
-  assetPrefix: process.env.NODE_ENV === 'production' ? '/forest-finder/' : '',
+  basePath: process.env.DEPLOY_TARGET === 'github' ? '/forest-finder' : '',
+  assetPrefix: process.env.DEPLOY_TARGET === 'github' ? '/forest-finder/' : '',
   images: { unoptimized: true },
   trailingSlash: true,
 }
