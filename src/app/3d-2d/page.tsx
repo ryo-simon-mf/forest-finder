@@ -45,8 +45,8 @@ function formatAddress(address: string | undefined): string | undefined {
 }
 
 const MIN_RADIUS = 5000
-const MAX_RADIUS = 15000
-const MAX_MARKERS = 30
+const MAX_RADIUS = 30000
+const MAX_MARKERS = 50
 const MIN_LOADING_MS = 5000
 
 export default function Map3D2DPage() {
@@ -172,7 +172,7 @@ export default function Map3D2DPage() {
   const walkingMinutes = displayForest?.distance
     ? Math.ceil(displayForest.distance / 80)
     : null
-  const distanceText = walkingMinutes !== null ? `${walkingMinutes}分` : '--'
+  const distanceNumber = walkingMinutes !== null ? `${walkingMinutes}` : '--'
   const subText = displayForest?.distance
     ? `${formatDistance(displayForest.distance)}・${getEstimatedArrivalTime(displayForest.distance).replace('に到着', '')}`
     : ''
@@ -243,8 +243,9 @@ export default function Map3D2DPage() {
                 </div>
                 <div className="border-l border-white/40 pl-5 ml-5 flex-1 basis-0 text-center flex flex-col justify-center">
                   <p className="text-white text-sm font-bold">現在地から</p>
-                  <p className="text-white font-extrabold text-5xl leading-none my-1">
-                    {isSearching ? '...' : distanceText}
+                  <p className="text-white leading-none my-1">
+                    <span className="font-extrabold text-5xl">{isSearching ? '...' : distanceNumber}</span>
+                    {!isSearching && walkingMinutes !== null && <span className="font-bold text-2xl ml-0.5">分</span>}
                   </p>
                   <p className="text-white text-sm font-bold">{subText}</p>
                 </div>

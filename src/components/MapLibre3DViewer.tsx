@@ -525,7 +525,7 @@ export default function MapLibre3DViewer({
           18, 8,
         ],
         'line-opacity': 0.85,
-        'line-dasharray': [2, 3],
+        'line-dasharray': [2, 1.5],
       },
     })
 
