@@ -24,10 +24,14 @@ interface MapLibre3DViewerProps {
   onMapCenterChange?: (lat: number, lng: number) => void
 }
 
-// 無料のベクタータイル（3D建物データ含む）- positron は CARTO light に近いトーン
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron'
-
 const ANIM_DURATION = 1500
+
+// タッチデバイス判定（スマホ/タブレット分岐）
+function isTouchDevice(): boolean {
+  if (typeof window === 'undefined') return false
+  return window.matchMedia('(pointer: coarse)').matches && window.innerWidth < 1024
+}
 
 export default function MapLibre3DViewer({
   latitude,
@@ -43,7 +47,7 @@ export default function MapLibre3DViewer({
 }: MapLibre3DViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
-  const markersRef = useRef<maplibregl.Marker[]>([])
+  const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map())
   const locationMarkerRef = useRef<maplibregl.Marker | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
   const animTargetRef = useRef<{ center: maplibregl.LngLat; zoom: number; bearing: number; pitch: number } | null>(null)
@@ -65,7 +69,10 @@ export default function MapLibre3DViewer({
       touchPitch: !topDown,
     })
 
-    map.addControl(new maplibregl.NavigationControl(), 'top-right')
+    // PC/タブレットのみNavigationControl表示
+    if (!isTouchDevice()) {
+      map.addControl(new maplibregl.NavigationControl(), 'top-right')
+    }
 
     map.on('load', () => {
       const layers = map.getStyle().layers
@@ -133,6 +140,7 @@ export default function MapLibre3DViewer({
     mapRef.current = map
 
     return () => {
+      if (moveendTimer) clearTimeout(moveendTimer)
       map.remove()
       mapRef.current = null
       setMapLoaded(false)
@@ -141,7 +149,6 @@ export default function MapLibre3DViewer({
   }, [])
 
   // 初期カメラ配置 + deferred animation
-  // mapLoaded後にforestMarkersから最寄りを探してカメラ目標を設定
   const initialCameraSetRef = useRef(false)
 
   useEffect(() => {
@@ -149,7 +156,7 @@ export default function MapLibre3DViewer({
     if (!map || !mapLoaded || initialCameraSetRef.current) return
 
     const nearest = forestMarkers.find((fm) => fm.isNearest)
-    if (!nearest) return // まだ森林データがない場合はスキップ
+    if (!nearest) return
 
     initialCameraSetRef.current = true
 
@@ -162,7 +169,7 @@ export default function MapLibre3DViewer({
     initBearing = Math.atan2(y, x) * 180 / Math.PI
 
     const fitPadding = topDown
-      ? { top: 160, bottom: 260, left: 60, right: 60 }
+      ? { top: 200, bottom: 260, left: 60, right: 60 }
       : { top: 120, bottom: 260, left: 60, right: 60 }
 
     const bounds = new maplibregl.LngLatBounds(
@@ -170,7 +177,6 @@ export default function MapLibre3DViewer({
       [Math.max(longitude, nearest.lon), Math.max(latitude, nearest.lat)]
     )
 
-    // fitBoundsで目標ズーム・中心を計算（即座に）
     map.fitBounds(bounds, {
       padding: fitPadding,
       pitch: 0,
@@ -183,11 +189,9 @@ export default function MapLibre3DViewer({
     const targetPitch = topDown ? 0 : 55
 
     if (animateReady !== undefined) {
-      // deferred animation mode: 開始位置に配置、animateReadyでflyTo
       map.jumpTo({ center: [longitude, latitude], zoom: 13, pitch: 0, bearing: initBearing })
       animTargetRef.current = { center: targetCenter, zoom: targetZoom, bearing: initBearing, pitch: targetPitch }
     } else {
-      // 即時アニメーション
       map.jumpTo({ center: [longitude, latitude], zoom: 13, pitch: 0 })
       map.flyTo({
         center: targetCenter,
@@ -288,7 +292,7 @@ export default function MapLibre3DViewer({
       .addTo(map)
   }, [latitude, longitude, mapLoaded, heading])
 
-  // 森林マーカー（タップ領域拡大）
+  // 森林マーカー（ビューポート内のみ表示 + 差分更新）
   const handleForestClick = useCallback(
     (index: number) => {
       onForestClick?.(index)
@@ -300,13 +304,40 @@ export default function MapLibre3DViewer({
     const map = mapRef.current
     if (!map || !mapLoaded) return
 
-    markersRef.current.forEach((m) => m.remove())
-    markersRef.current = []
+    const visibleBounds = map.getBounds()
+    const padding = 0.01 // 少し余裕を持たせる
+    const paddedBounds = new maplibregl.LngLatBounds(
+      [visibleBounds.getWest() - padding, visibleBounds.getSouth() - padding],
+      [visibleBounds.getEast() + padding, visibleBounds.getNorth() + padding]
+    )
+
+    // 新しいマーカーセットのキーを作成
+    const newKeys = new Set<string>()
+    const markersToAdd: { fm: ForestMarker; idx: number; key: string }[] = []
 
     forestMarkers.forEach((fm, idx) => {
+      const key = `${fm.lat},${fm.lon}`
+      // ビューポート内のマーカーのみ表示
+      if (paddedBounds.contains([fm.lon, fm.lat])) {
+        newKeys.add(key)
+        if (!markersRef.current.has(key)) {
+          markersToAdd.push({ fm, idx, key })
+        }
+      }
+    })
+
+    // ビューポート外 or 不要なマーカーを削除
+    markersRef.current.forEach((marker, key) => {
+      if (!newKeys.has(key)) {
+        marker.remove()
+        markersRef.current.delete(key)
+      }
+    })
+
+    // 新規マーカーを追加
+    markersToAdd.forEach(({ fm, idx, key }) => {
       const iconSize = fm.isNearest ? 32 : 24
       const color = fm.isNearest ? 'rgba(27, 172, 83, 1)' : '#8fd4a4'
-      // タップ領域を最低44pxに拡大（モバイル対応）
       const tapSize = Math.max(44, iconSize)
       const el = document.createElement('div')
       el.style.cssText = `
@@ -332,7 +363,6 @@ export default function MapLibre3DViewer({
       `
       el.appendChild(icon)
 
-      // click + touchend 両対応
       let touchMoved = false
       el.addEventListener('touchstart', () => { touchMoved = false }, { passive: true })
       el.addEventListener('touchmove', () => { touchMoved = true }, { passive: true })
@@ -352,9 +382,49 @@ export default function MapLibre3DViewer({
         .setLngLat([fm.lon, fm.lat])
         .addTo(map)
 
-      markersRef.current.push(marker)
+      markersRef.current.set(key, marker)
     })
   }, [forestMarkers, handleForestClick, mapLoaded])
+
+  // ズーム/パン時にマーカーの表示/非表示を更新
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapLoaded) return
+
+    let viewportTimer: ReturnType<typeof setTimeout> | null = null
+
+    const updateVisibleMarkers = () => {
+      if (viewportTimer) clearTimeout(viewportTimer)
+      viewportTimer = setTimeout(() => {
+        const visibleBounds = map.getBounds()
+        const padding = 0.01
+
+        const paddedBounds = new maplibregl.LngLatBounds(
+          [visibleBounds.getWest() - padding, visibleBounds.getSouth() - padding],
+          [visibleBounds.getEast() + padding, visibleBounds.getNorth() + padding]
+        )
+
+        markersRef.current.forEach((marker) => {
+          const lngLat = marker.getLngLat()
+          const el = marker.getElement()
+          if (paddedBounds.contains(lngLat)) {
+            el.style.display = ''
+          } else {
+            el.style.display = 'none'
+          }
+        })
+      }, 150)
+    }
+
+    map.on('moveend', updateVisibleMarkers)
+    map.on('zoomend', updateVisibleMarkers)
+
+    return () => {
+      if (viewportTimer) clearTimeout(viewportTimer)
+      map.off('moveend', updateVisibleMarkers)
+      map.off('zoomend', updateVisibleMarkers)
+    }
+  }, [mapLoaded])
 
   // ルート表示（アニメーション付き）+ カメラ移動
   const fittedRouteRef = useRef<string | null>(null)
@@ -364,7 +434,6 @@ export default function MapLibre3DViewer({
     const map = mapRef.current
     if (!map || !mapLoaded) return
 
-    // 既存ルートを削除
     if (map.getLayer('route-line')) map.removeLayer('route-line')
     if (map.getSource('route')) map.removeSource('route')
 
@@ -373,7 +442,6 @@ export default function MapLibre3DViewer({
     const fullCoordinates = route.map(([lat, lng]) => [lng, lat])
     const routeKey = `${route[0][0]},${route[0][1]}-${route[route.length - 1][0]},${route[route.length - 1][1]}`
 
-    // カメラ移動: ルートが変わった時にflyTo
     if (initialRouteRef.current) {
       initialRouteRef.current = false
       fittedRouteRef.current = routeKey
@@ -394,10 +462,9 @@ export default function MapLibre3DViewer({
          Math.max(fullCoordinates[0][1], fullCoordinates[fullCoordinates.length - 1][1])]
       )
       const routePadding = topDown
-        ? { top: 160, bottom: 260, left: 60, right: 60 }
+        ? { top: 200, bottom: 260, left: 60, right: 60 }
         : { top: 120, bottom: 260, left: 60, right: 60 }
 
-      // 現在のカメラ位置を保存してからfitBoundsで目標を計算
       const currentCenter = map.getCenter()
       const currentZoom = map.getZoom()
       const currentBearing = map.getBearing()
@@ -413,7 +480,6 @@ export default function MapLibre3DViewer({
       const targetZoom = map.getZoom()
       const targetCenter = map.getCenter()
 
-      // 元の位置に戻してからflyTo
       map.jumpTo({
         center: currentCenter,
         zoom: currentZoom,
@@ -430,7 +496,6 @@ export default function MapLibre3DViewer({
       })
     }
 
-    // ルート描画
     map.addSource('route', {
       type: 'geojson',
       data: {
@@ -459,7 +524,6 @@ export default function MapLibre3DViewer({
       },
     })
 
-    // アニメーション: 1.5秒かけてease-out-cubicで経路を伸ばす
     const totalPoints = fullCoordinates.length
     const startTime = performance.now()
     let rafId: number
@@ -505,14 +569,31 @@ export default function MapLibre3DViewer({
     })
   }, [latitude, longitude, topDown])
 
+  // 現在地ボタンのタッチ対応（ダブルタップ不要にする）
+  const recenterTouchRef = useRef(false)
+  const handleRecenterTouch = useCallback((e: React.TouchEvent) => {
+    e.preventDefault()
+    recenterTouchRef.current = true
+    handleRecenter()
+  }, [handleRecenter])
+  const handleRecenterClick = useCallback(() => {
+    // touchendで既に処理済みならスキップ
+    if (recenterTouchRef.current) {
+      recenterTouchRef.current = false
+      return
+    }
+    handleRecenter()
+  }, [handleRecenter])
+
   return (
     <div className="h-full w-full relative">
       <div ref={containerRef} className="h-full w-full" />
 
       {/* 現在地に戻るボタン */}
       <button
-        onClick={handleRecenter}
-        className="fixed z-[1001] right-4 bottom-[calc(12rem+env(safe-area-inset-bottom))] bg-[#1bac53] rounded-full w-11 h-11 shadow-lg flex items-center justify-center hover:bg-[#159a48] active:bg-[#128a3f] transition-colors"
+        onTouchEnd={handleRecenterTouch}
+        onClick={handleRecenterClick}
+        className="fixed z-[1001] right-4 bottom-[calc(12rem+env(safe-area-inset-bottom))] bg-[#1bac53] rounded-full w-11 h-11 shadow-lg flex items-center justify-center hover:bg-[#159a48] active:bg-[#128a3f] transition-colors touch-manipulation"
         aria-label="現在地に戻る"
         title="現在地に戻る"
       >
