@@ -311,17 +311,24 @@ export default function MapLibre3DViewer({
       [visibleBounds.getEast() + padding, visibleBounds.getNorth() + padding]
     )
 
-    // 新しいマーカーセットのキーを作成
+    // 新しいマーカーセットのキーを作成（isNearestをキーに含めて色変更時に再作成）
     const newKeys = new Set<string>()
     const markersToAdd: { fm: ForestMarker; idx: number; key: string }[] = []
 
     forestMarkers.forEach((fm, idx) => {
       const key = `${fm.lat},${fm.lon}`
+      const fullKey = `${key}:${fm.isNearest ? 1 : 0}`
       // ビューポート内のマーカーのみ表示
       if (paddedBounds.contains([fm.lon, fm.lat])) {
-        newKeys.add(key)
-        if (!markersRef.current.has(key)) {
-          markersToAdd.push({ fm, idx, key })
+        newKeys.add(fullKey)
+        if (!markersRef.current.has(fullKey)) {
+          // isNearestが変わった場合、古いキーのマーカーを削除
+          const altKey = `${key}:${fm.isNearest ? 0 : 1}`
+          if (markersRef.current.has(altKey)) {
+            markersRef.current.get(altKey)!.remove()
+            markersRef.current.delete(altKey)
+          }
+          markersToAdd.push({ fm, idx, key: fullKey })
         }
       }
     })
