@@ -393,8 +393,12 @@ export default function MapLibre3DViewer({
         ? { top: 160, bottom: 260, left: 60, right: 60 }
         : { top: 120, bottom: 260, left: 60, right: 60 }
 
-      // flyToでスムーズにカメラ移動
-      // まずfitBoundsで目標を計算
+      // 現在のカメラ位置を保存してからfitBoundsで目標を計算
+      const currentCenter = map.getCenter()
+      const currentZoom = map.getZoom()
+      const currentBearing = map.getBearing()
+      const currentPitch = map.getPitch()
+
       map.fitBounds(routeBounds, {
         padding: routePadding,
         bearing,
@@ -405,10 +409,12 @@ export default function MapLibre3DViewer({
       const targetZoom = map.getZoom()
       const targetCenter = map.getCenter()
 
-      // 現在のカメラ位置に戻してからflyTo
+      // 元の位置に戻してからflyTo
       map.jumpTo({
-        center: map.getCenter(),
-        zoom: map.getZoom(),
+        center: currentCenter,
+        zoom: currentZoom,
+        bearing: currentBearing,
+        pitch: currentPitch,
       })
       map.flyTo({
         center: targetCenter,
