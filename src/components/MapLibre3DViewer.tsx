@@ -53,36 +53,13 @@ export default function MapLibre3DViewer({
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
 
-    // 最寄り森林を探す
-    const nearest = forestMarkers.find((fm) => fm.isNearest)
-
-    // 現在地→森林の方角を計算（森林が画面上にくるようにbearingを設定）
-    let initBearing = 0
-    if (nearest) {
-      const dLon = (nearest.lon - longitude) * Math.PI / 180
-      const lat1 = latitude * Math.PI / 180
-      const lat2 = nearest.lat * Math.PI / 180
-      const y = Math.sin(dLon) * Math.cos(lat2)
-      const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon)
-      initBearing = Math.atan2(y, x) * 180 / Math.PI
-    }
-
-    const bounds = nearest
-      ? new maplibregl.LngLatBounds(
-          [Math.min(longitude, nearest.lon), Math.min(latitude, nearest.lat)],
-          [Math.max(longitude, nearest.lon), Math.max(latitude, nearest.lat)]
-        )
-      : null
-
-    const usePitch = topDown ? 0 : 55
-
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: MAP_STYLE,
       center: [longitude, latitude],
-      zoom: 15,
-      pitch: usePitch,
-      bearing: initBearing,
+      zoom: 13,
+      pitch: 0,
+      bearing: 0,
       maxPitch: topDown ? 0 : 85,
       dragRotate: true,
       touchPitch: !topDown,
@@ -91,41 +68,6 @@ export default function MapLibre3DViewer({
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
 
     map.on('load', () => {
-      // 現在地(下)と最寄り森林(上)が画面に収まるようにフィット
-      const fitPadding = topDown
-        ? { top: 160, bottom: 260, left: 60, right: 60 }
-        : { top: 120, bottom: 260, left: 60, right: 60 }
-      if (bounds) {
-        // fitBoundsで目標ズーム・中心を計算（即座に）
-        map.fitBounds(bounds, {
-          padding: fitPadding,
-          pitch: 0,
-          bearing: initBearing,
-          maxZoom: 19,
-          duration: 0,
-        })
-        const targetZoom = map.getZoom() - (topDown ? 0 : 0.5)
-        const targetCenter = map.getCenter()
-        const targetPitch = topDown ? 0 : 55
-
-        if (animateReady !== undefined) {
-          // deferred animation mode: 開始位置に配置、animateReadyでflyTo
-          map.jumpTo({ center: [longitude, latitude], zoom: 13, pitch: 0, bearing: initBearing })
-          animTargetRef.current = { center: targetCenter, zoom: targetZoom, bearing: initBearing, pitch: targetPitch }
-        } else {
-          // 即時アニメーション
-          map.jumpTo({ center: [longitude, latitude], zoom: 13, pitch: 0 })
-          map.flyTo({
-            center: targetCenter,
-            zoom: targetZoom,
-            pitch: targetPitch,
-            bearing: initBearing,
-            duration: 2000,
-            curve: 1.2,
-          })
-        }
-      }
-
       const layers = map.getStyle().layers
       let labelLayerId: string | undefined
 
@@ -172,7 +114,7 @@ export default function MapLibre3DViewer({
       setMapLoaded(true)
     })
 
-    // (#7) BoundsWatcher: moveend で半径通知 + パン検索
+    // BoundsWatcher: moveend で半径通知 + パン検索
     map.on('moveend', () => {
       const center = map.getCenter()
       const mapBounds = map.getBounds()
@@ -194,6 +136,66 @@ export default function MapLibre3DViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // 初期カメラ配置 + deferred animation
+  // mapLoaded後にforestMarkersから最寄りを探してカメラ目標を設定
+  const initialCameraSetRef = useRef(false)
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapLoaded || initialCameraSetRef.current) return
+
+    const nearest = forestMarkers.find((fm) => fm.isNearest)
+    if (!nearest) return // まだ森林データがない場合はスキップ
+
+    initialCameraSetRef.current = true
+
+    let initBearing = 0
+    const dLon = (nearest.lon - longitude) * Math.PI / 180
+    const lat1 = latitude * Math.PI / 180
+    const lat2 = nearest.lat * Math.PI / 180
+    const y = Math.sin(dLon) * Math.cos(lat2)
+    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon)
+    initBearing = Math.atan2(y, x) * 180 / Math.PI
+
+    const fitPadding = topDown
+      ? { top: 160, bottom: 260, left: 60, right: 60 }
+      : { top: 120, bottom: 260, left: 60, right: 60 }
+
+    const bounds = new maplibregl.LngLatBounds(
+      [Math.min(longitude, nearest.lon), Math.min(latitude, nearest.lat)],
+      [Math.max(longitude, nearest.lon), Math.max(latitude, nearest.lat)]
+    )
+
+    // fitBoundsで目標ズーム・中心を計算（即座に）
+    map.fitBounds(bounds, {
+      padding: fitPadding,
+      pitch: 0,
+      bearing: initBearing,
+      maxZoom: 19,
+      duration: 0,
+    })
+    const targetZoom = map.getZoom() - (topDown ? 0 : 0.5)
+    const targetCenter = map.getCenter()
+    const targetPitch = topDown ? 0 : 55
+
+    if (animateReady !== undefined) {
+      // deferred animation mode: 開始位置に配置、animateReadyでflyTo
+      map.jumpTo({ center: [longitude, latitude], zoom: 13, pitch: 0, bearing: initBearing })
+      animTargetRef.current = { center: targetCenter, zoom: targetZoom, bearing: initBearing, pitch: targetPitch }
+    } else {
+      // 即時アニメーション
+      map.jumpTo({ center: [longitude, latitude], zoom: 13, pitch: 0 })
+      map.flyTo({
+        center: targetCenter,
+        zoom: targetZoom,
+        pitch: targetPitch,
+        bearing: initBearing,
+        duration: 2000,
+        curve: 1.2,
+      })
+    }
+  }, [mapLoaded, forestMarkers, latitude, longitude, topDown, animateReady])
+
   // deferred animation: animateReadyがtrueになったらflyTo発動
   useEffect(() => {
     const map = mapRef.current
@@ -211,13 +213,12 @@ export default function MapLibre3DViewer({
     })
   }, [animateReady, mapLoaded])
 
-  // (#1) 現在地マーカー（方向付き）
+  // 現在地マーカー（方向付き）
   useEffect(() => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
 
     if (locationMarkerRef.current) {
-      // 既存マーカーの位置更新 + heading更新
       locationMarkerRef.current.setLngLat([longitude, latitude])
       const el = locationMarkerRef.current.getElement()
       const arrow = el.querySelector('.direction-arrow') as HTMLElement | null
@@ -238,7 +239,6 @@ export default function MapLibre3DViewer({
       width: 80px; height: 80px;
     `
 
-    // 方向矢印SVG
     const arrowDiv = document.createElement('div')
     arrowDiv.className = 'direction-arrow'
     arrowDiv.style.cssText = `
@@ -266,7 +266,6 @@ export default function MapLibre3DViewer({
     `
     el.appendChild(arrowDiv)
 
-    // 青い丸
     const dot = document.createElement('div')
     dot.style.cssText = `
       position: absolute;
@@ -285,7 +284,7 @@ export default function MapLibre3DViewer({
       .addTo(map)
   }, [latitude, longitude, mapLoaded, heading])
 
-  // 森林マーカー
+  // 森林マーカー（タップ領域拡大）
   const handleForestClick = useCallback(
     (index: number) => {
       onForestClick?.(index)
@@ -301,11 +300,21 @@ export default function MapLibre3DViewer({
     markersRef.current = []
 
     forestMarkers.forEach((fm, idx) => {
-      const size = fm.isNearest ? 32 : 24
+      const iconSize = fm.isNearest ? 32 : 24
       const color = fm.isNearest ? 'rgba(27, 172, 83, 1)' : '#8fd4a4'
+      // タップ領域を最低44pxに拡大（モバイル対応）
+      const tapSize = Math.max(44, iconSize)
       const el = document.createElement('div')
       el.style.cssText = `
-        width: ${size}px; height: ${size}px;
+        width: ${tapSize}px; height: ${tapSize}px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      `
+      const icon = document.createElement('div')
+      icon.style.cssText = `
+        width: ${iconSize}px; height: ${iconSize}px;
         background-color: ${color};
         -webkit-mask-image: url(${iconImg.src});
         mask-image: url(${iconImg.src});
@@ -316,8 +325,20 @@ export default function MapLibre3DViewer({
         -webkit-mask-position: center;
         mask-position: center;
         ${fm.isNearest ? 'filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));' : ''}
-        cursor: pointer;
       `
+      el.appendChild(icon)
+
+      // click + touchend 両対応
+      let touchMoved = false
+      el.addEventListener('touchstart', () => { touchMoved = false }, { passive: true })
+      el.addEventListener('touchmove', () => { touchMoved = true }, { passive: true })
+      el.addEventListener('touchend', (e) => {
+        if (!touchMoved) {
+          e.preventDefault()
+          e.stopPropagation()
+          handleForestClick(idx)
+        }
+      })
       el.addEventListener('click', (e) => {
         e.stopPropagation()
         handleForestClick(idx)
@@ -331,7 +352,7 @@ export default function MapLibre3DViewer({
     })
   }, [forestMarkers, handleForestClick, mapLoaded])
 
-  // (#3) ルート表示（アニメーション付き）+ カメラ移動
+  // ルート表示（アニメーション付き）+ カメラ移動
   const fittedRouteRef = useRef<string | null>(null)
   const initialRouteRef = useRef(true)
 
@@ -348,13 +369,13 @@ export default function MapLibre3DViewer({
     const fullCoordinates = route.map(([lat, lng]) => [lng, lat])
     const routeKey = `${route[0][0]},${route[0][1]}-${route[route.length - 1][0]},${route[route.length - 1][1]}`
 
-    // カメラ移動: ルートが変わった時にfitBounds（初回はスキップ＝初期化時に済んでいる）
+    // カメラ移動: ルートが変わった時にflyTo
     if (initialRouteRef.current) {
       initialRouteRef.current = false
       fittedRouteRef.current = routeKey
     } else if (fittedRouteRef.current !== routeKey) {
       fittedRouteRef.current = routeKey
-      // 現在地→目的地の方角を計算
+
       const startLat = route[0][0] * Math.PI / 180
       const endLat = route[route.length - 1][0] * Math.PI / 180
       const dLon = (route[route.length - 1][1] - route[0][1]) * Math.PI / 180
@@ -362,7 +383,7 @@ export default function MapLibre3DViewer({
       const x = Math.cos(startLat) * Math.sin(endLat) - Math.sin(startLat) * Math.cos(endLat) * Math.cos(dLon)
       const bearing = Math.atan2(y, x) * 180 / Math.PI
 
-      const bounds = new maplibregl.LngLatBounds(
+      const routeBounds = new maplibregl.LngLatBounds(
         [Math.min(fullCoordinates[0][0], fullCoordinates[fullCoordinates.length - 1][0]),
          Math.min(fullCoordinates[0][1], fullCoordinates[fullCoordinates.length - 1][1])],
         [Math.max(fullCoordinates[0][0], fullCoordinates[fullCoordinates.length - 1][0]),
@@ -371,16 +392,35 @@ export default function MapLibre3DViewer({
       const routePadding = topDown
         ? { top: 160, bottom: 260, left: 60, right: 60 }
         : { top: 120, bottom: 260, left: 60, right: 60 }
-      map.fitBounds(bounds, {
+
+      // flyToでスムーズにカメラ移動
+      // まずfitBoundsで目標を計算
+      map.fitBounds(routeBounds, {
         padding: routePadding,
         bearing,
         pitch: topDown ? 0 : 55,
         maxZoom: 19,
-        duration: 1000,
+        duration: 0,
+      })
+      const targetZoom = map.getZoom()
+      const targetCenter = map.getCenter()
+
+      // 現在のカメラ位置に戻してからflyTo
+      map.jumpTo({
+        center: map.getCenter(),
+        zoom: map.getZoom(),
+      })
+      map.flyTo({
+        center: targetCenter,
+        zoom: targetZoom,
+        bearing,
+        pitch: topDown ? 0 : 55,
+        duration: 1200,
+        curve: 1.0,
       })
     }
 
-    // 最初は空のLineStringで追加
+    // ルート描画
     map.addSource('route', {
       type: 'geojson',
       data: {
@@ -398,14 +438,14 @@ export default function MapLibre3DViewer({
       type: 'line',
       source: 'route',
       layout: {
-        'line-join': 'miter',
-        'line-cap': 'square',
+        'line-join': 'round',
+        'line-cap': 'butt',
       },
       paint: {
         'line-color': 'rgba(27, 172, 83, 1)',
-        'line-width': 6,
-        'line-opacity': 0.8,
-        'line-dasharray': [1.33, 2],
+        'line-width': 4,
+        'line-opacity': 0.85,
+        'line-dasharray': [2, 3],
       },
     })
 
@@ -441,9 +481,9 @@ export default function MapLibre3DViewer({
     return () => {
       cancelAnimationFrame(rafId)
     }
-  }, [route, mapLoaded])
+  }, [route, mapLoaded, topDown])
 
-  // (#4) 現在地に戻る
+  // 現在地に戻る
   const handleRecenter = useCallback(() => {
     const map = mapRef.current
     if (!map) return
@@ -459,7 +499,7 @@ export default function MapLibre3DViewer({
     <div className="h-full w-full relative">
       <div ref={containerRef} className="h-full w-full" />
 
-      {/* (#4) 現在地に戻るボタン */}
+      {/* 現在地に戻るボタン */}
       <button
         onClick={handleRecenter}
         className="fixed z-[1001] right-4 bottom-[calc(12rem+env(safe-area-inset-bottom))] bg-[#1bac53] rounded-full w-11 h-11 shadow-lg flex items-center justify-center hover:bg-[#159a48] active:bg-[#128a3f] transition-colors"
