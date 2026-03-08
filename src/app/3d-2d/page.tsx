@@ -45,11 +45,19 @@ function formatAddress(address: string | undefined): string | undefined {
 }
 
 const MIN_RADIUS = 5000
-const MAX_RADIUS = 30000
-const MAX_MARKERS = 50
 const MIN_LOADING_MS = 5000
 
+function isMobile() {
+  if (typeof window === 'undefined') return true
+  return window.matchMedia('(pointer: coarse)').matches && window.innerWidth < 1024
+}
+
+
 export default function Map3D2DPage() {
+  const [mobile] = useState(() => isMobile())
+  const MAX_RADIUS = mobile ? 30000 : 999999
+  const MAX_MARKERS = 50 // スマホのみ使用
+
   const [started, setStarted] = useState(false)
   const [dataLoaded, setDataLoaded] = useState(isForestDataLoaded())
   const [minTimeElapsed, setMinTimeElapsed] = useState(false)
@@ -117,8 +125,9 @@ export default function Map3D2DPage() {
   const routeTarget = selectedForest ?? forestResult?.nearest ?? null
   const { route, isLoading: isRouteLoading } = useRoute(position, routeTarget)
 
-  // 表示するマーカーを近い順にMAX_MARKERS件に制限（パフォーマンス対策）
-  const displayForests = (forestResult?.forests || []).slice(0, MAX_MARKERS)
+  // スマホのみMAX_MARKERS件に制限（パフォーマンス対策）、PCは制限なし
+  const allForests = forestResult?.forests || []
+  const displayForests = mobile ? allForests.slice(0, MAX_MARKERS) : allForests
   const forestMarkers = displayForests.map((f) => ({
     lat: f.center.latitude,
     lon: f.center.longitude,
