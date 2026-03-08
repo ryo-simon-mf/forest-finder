@@ -103,9 +103,12 @@ export function useForestSearch(
             }))
             .sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity))
 
+          // メモリ上限: 蓄積が300件を超えたら遠い順に削除
+          const capped = merged.length > 300 ? merged.slice(0, 300) : merged
+
           return {
-            forests: merged,
-            nearest: merged[0] || null,
+            forests: capped,
+            nearest: capped[0] || null,
             searchRadius: Math.max(prev.searchRadius, searchResult.searchRadius),
           }
         })
@@ -154,9 +157,12 @@ export function useForestSearch(
             }))
             .sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity))
 
+          // メモリ上限: 蓄積が300件を超えたら遠い順に削除
+          const capped = merged.length > 300 ? merged.slice(0, 300) : merged
+
           return {
-            forests: merged,
-            nearest: merged[0] || null,
+            forests: capped,
+            nearest: capped[0] || null,
             searchRadius: Math.max(prev.searchRadius, searchResult.searchRadius),
           }
         })

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import { useGeolocation } from '@/hooks/useGeolocation'
 import { useForestSearch } from '@/hooks/useForestSearch'
@@ -9,7 +9,7 @@ import { useRoute } from '@/hooks/useRoute'
 import { LocationPermission } from '@/components/LocationPermission'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { ForestTipBubble } from '@/components/ForestTipBubble'
-import { formatDistance, getEstimatedArrivalTime } from '@/lib/distance'
+import { formatDistance, getEstimatedArrivalTime, calculateDistance } from '@/lib/distance'
 import iconImg from '@/img/icon.svg'
 import {
   searchForestsLocal,
@@ -107,6 +107,10 @@ export default function Map3D2DPage() {
   const [mapRadius, setMapRadius] = useState(MIN_RADIUS)
   const radiusMeters = Math.min(MAX_RADIUS, Math.max(MIN_RADIUS, mapRadius))
 
+  // ビューポート追跡（スマホのマーカー選定用）
+  const [viewCenter, setViewCenter] = useState<{ lat: number; lng: number } | null>(null)
+  const [viewRadius, setViewRadius] = useState(MIN_RADIUS)
+
   const searchFn = useCallback(
     (lat: number, lon: number, radius?: number, limit?: number) =>
       searchForestsLocal(lat, lon, radius, limit),
@@ -125,13 +129,29 @@ export default function Map3D2DPage() {
   const routeTarget = selectedForest ?? forestResult?.nearest ?? null
   const { route, isLoading: isRouteLoading } = useRoute(position, routeTarget)
 
-  // スマホのみMAX_MARKERS件に制限（パフォーマンス対策）、PCは制限なし
+  // スマホ: ビューポート内の森林をMAX_MARKERS件まで表示、PC: 制限なし
   const allForests = forestResult?.forests || []
-  const displayForests = mobile ? allForests.slice(0, MAX_MARKERS) : allForests
+  const nearestId = routeTarget?.id ?? forestResult?.nearest?.id
+  const displayForests = useMemo(() => {
+    if (!mobile) return allForests
+    if (!viewCenter) return allForests.slice(0, MAX_MARKERS)
+    // ビューポート半径の1.5倍以内の森林を、ビューポート中心から近い順に選定
+    const maxDist = viewRadius * 1.5
+    return allForests
+      .map((f) => ({
+        forest: f,
+        viewDist: calculateDistance(viewCenter.lat, viewCenter.lng, f.center.latitude, f.center.longitude),
+      }))
+      .filter((x) => x.viewDist <= maxDist)
+      .sort((a, b) => a.viewDist - b.viewDist)
+      .slice(0, MAX_MARKERS)
+      .map((x) => x.forest)
+  }, [allForests, mobile, viewCenter, viewRadius, MAX_MARKERS])
+
   const forestMarkers = displayForests.map((f) => ({
     lat: f.center.latitude,
     lon: f.center.longitude,
-    isNearest: f.id === (routeTarget?.id ?? forestResult?.nearest?.id),
+    isNearest: f.id === nearestId,
   }))
 
   const handleForestClick = useCallback(
@@ -145,11 +165,13 @@ export default function Map3D2DPage() {
   )
 
   const handleBoundsChange = useCallback((r: number) => {
+    setViewRadius(r)
     const quantized = Math.pow(2, Math.round(Math.log2(r)))
     setMapRadius((prev) => Math.max(prev, quantized))
   }, [])
 
   const handleMapCenterChange = useCallback((lat: number, lng: number) => {
+    setViewCenter({ lat, lng })
     searchAt(lat, lng)
   }, [searchAt])
 
