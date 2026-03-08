@@ -114,16 +114,20 @@ export default function MapLibre3DViewer({
       setMapLoaded(true)
     })
 
-    // BoundsWatcher: moveend で半径通知 + パン検索
+    // BoundsWatcher: moveend で半径通知 + パン検索（デバウンス付き）
+    let moveendTimer: ReturnType<typeof setTimeout> | null = null
     map.on('moveend', () => {
-      const center = map.getCenter()
-      const mapBounds = map.getBounds()
-      const ne = mapBounds.getNorthEast()
-      const centerLatLng = new maplibregl.LngLat(center.lng, center.lat)
-      const neLatLng = new maplibregl.LngLat(ne.lng, ne.lat)
-      const radiusMeters = centerLatLng.distanceTo(neLatLng)
-      onBoundsChange?.(radiusMeters)
-      onMapCenterChange?.(center.lat, center.lng)
+      if (moveendTimer) clearTimeout(moveendTimer)
+      moveendTimer = setTimeout(() => {
+        const center = map.getCenter()
+        const mapBounds = map.getBounds()
+        const ne = mapBounds.getNorthEast()
+        const centerLatLng = new maplibregl.LngLat(center.lng, center.lat)
+        const neLatLng = new maplibregl.LngLat(ne.lng, ne.lat)
+        const radiusMeters = centerLatLng.distanceTo(neLatLng)
+        onBoundsChange?.(radiusMeters)
+        onMapCenterChange?.(center.lat, center.lng)
+      }, 300)
     })
 
     mapRef.current = map

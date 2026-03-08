@@ -45,6 +45,8 @@ function formatAddress(address: string | undefined): string | undefined {
 }
 
 const MIN_RADIUS = 5000
+const MAX_RADIUS = 15000
+const MAX_MARKERS = 30
 const MIN_LOADING_MS = 5000
 
 export default function Map3D2DPage() {
@@ -95,7 +97,7 @@ export default function Map3D2DPage() {
   }, [isReady, overlayVisible])
 
   const [mapRadius, setMapRadius] = useState(MIN_RADIUS)
-  const radiusMeters = Math.max(MIN_RADIUS, mapRadius)
+  const radiusMeters = Math.min(MAX_RADIUS, Math.max(MIN_RADIUS, mapRadius))
 
   const searchFn = useCallback(
     (lat: number, lon: number, radius?: number, limit?: number) =>
@@ -115,7 +117,9 @@ export default function Map3D2DPage() {
   const routeTarget = selectedForest ?? forestResult?.nearest ?? null
   const { route, isLoading: isRouteLoading } = useRoute(position, routeTarget)
 
-  const forestMarkers = (forestResult?.forests || []).map((f) => ({
+  // 表示するマーカーを近い順にMAX_MARKERS件に制限（パフォーマンス対策）
+  const displayForests = (forestResult?.forests || []).slice(0, MAX_MARKERS)
+  const forestMarkers = displayForests.map((f) => ({
     lat: f.center.latitude,
     lon: f.center.longitude,
     isNearest: f.id === (routeTarget?.id ?? forestResult?.nearest?.id),
@@ -123,13 +127,12 @@ export default function Map3D2DPage() {
 
   const handleForestClick = useCallback(
     (index: number) => {
-      const forests = forestResult?.forests
-      if (forests && forests[index]) {
-        setSelectedForestId(forests[index].id)
-        resolveAddress(forests[index])
+      if (displayForests[index]) {
+        setSelectedForestId(displayForests[index].id)
+        resolveAddress(displayForests[index])
       }
     },
-    [forestResult, resolveAddress]
+    [displayForests, resolveAddress]
   )
 
   const handleBoundsChange = useCallback((r: number) => {
