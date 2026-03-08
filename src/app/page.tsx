@@ -79,18 +79,22 @@ export default function Home() {
     []
   )
 
-  const { result: forestResult, isLoading: isSearching, searchAt } = useForestSearch(
+  const { result: forestResult, isLoading: isSearching, searchAt, resolveAddress } = useForestSearch(
     dataLoaded ? position : null,
     { searchFn, radiusMeters }
   )
 
-  const [selectedForest, setSelectedForest] = useState<ForestArea | null>(null)
+  const [selectedForestId, setSelectedForestId] = useState<string | null>(null)
+  const selectedForest = selectedForestId
+    ? forestResult?.forests.find((f) => f.id === selectedForestId) ?? null
+    : null
   const routeTarget = selectedForest ?? forestResult?.nearest ?? null
   const { route, isLoading: isRouteLoading } = useRoute(position, routeTarget)
 
   const handleForestSelect = useCallback((forest: ForestArea) => {
-    setSelectedForest(forest)
-  }, [])
+    setSelectedForestId(forest.id)
+    resolveAddress(forest)
+  }, [resolveAddress])
 
   // 半径を量子化し、縮小しない（ズームインで森が消えるのを防止）
   const handleBoundsChange = useCallback((r: number) => {

@@ -5,7 +5,7 @@ import type { Position } from '@/types/geolocation'
 import type { ForestSearchResult, ForestArea } from '@/types/forest'
 import { searchForestsLocal } from '@/services/localForestService'
 import { calculateDistance } from '@/lib/distance'
-import { resolveForestAddresses } from '@/lib/reverseGeocode'
+import { reverseGeocode } from '@/lib/reverseGeocode'
 
 export type SearchFn = (
   latitude: number,
@@ -26,9 +26,10 @@ interface UseForestSearchReturn {
   error: string | null
   refresh: () => void
   searchAt: (lat: number, lng: number) => void
+  resolveAddress: (forest: ForestArea) => void
 }
 
-// 住所キャッシュ（マージで上書きされても復元できる）
+// 住所キャッシュ
 const addressCache = new Map<string, string>()
 
 export function useForestSearch(
@@ -46,22 +47,28 @@ export function useForestSearch(
   const gpsPositionRef = useRef<Position | null>(position)
   gpsPositionRef.current = position
 
-  // デプロイ済みと同じ住所解決ロジック（バッチ処理）
-  const resolveAndApply = useCallback((forests: ForestArea[]) => {
-    const needsAddress = forests.filter((f) => !f.address && !addressCache.has(f.id))
-    if (needsAddress.length === 0) return
-
-    resolveForestAddresses(needsAddress).then((addressMap) => {
-      // キャッシュに保存
-      addressMap.forEach((addr, id) => { if (addr) addressCache.set(id, addr) })
-
+  // 1件の森の住所を即座に解決してstateに反映
+  const resolveAddress = useCallback((forest: ForestArea) => {
+    // キャッシュにあればすぐ反映
+    const cached = addressCache.get(forest.id)
+    if (cached) {
       setResult((prev) => {
         if (!prev) return prev
-        const updated = prev.forests.map((f) => {
-          const addr = addressMap.get(f.id) || addressCache.get(f.id)
-          return addr ? { ...f, address: addr } : f
-        })
-        return { ...prev, forests: updated, nearest: updated[0] || null }
+        const forests = prev.forests.map((f) => f.id === forest.id ? { ...f, address: cached } : f)
+        return { ...prev, forests, nearest: forests[0] || null }
+      })
+      return
+    }
+
+    if (forest.address) return
+
+    reverseGeocode(forest.center.latitude, forest.center.longitude).then((addr) => {
+      if (!addr) return
+      addressCache.set(forest.id, addr)
+      setResult((prev) => {
+        if (!prev) return prev
+        const forests = prev.forests.map((f) => f.id === forest.id ? { ...f, address: addr } : f)
+        return { ...prev, forests, nearest: forests[0] || null }
       })
     })
   }, [])
@@ -74,10 +81,8 @@ export function useForestSearch(
       try {
         const searchResult = searchFn(pos.latitude, pos.longitude, radiusMeters)
 
-        // 既存resultとマージ
         setResult((prev) => {
           if (!prev) {
-            // 初回: キャッシュから住所を復元
             const forests = searchResult.forests.map((f) => ({
               ...f,
               address: f.address || addressCache.get(f.id),
@@ -85,7 +90,6 @@ export function useForestSearch(
             return { ...searchResult, forests, nearest: forests[0] || null }
           }
 
-          // マージ: 既存を保持しつつ新規を追加
           const existingMap = new Map(prev.forests.map((f) => [f.id, f]))
           for (const f of searchResult.forests) {
             if (!existingMap.has(f.id)) {
@@ -106,9 +110,6 @@ export function useForestSearch(
           }
         })
         lastSearchPositionRef.current = pos
-
-        // 住所解決（デプロイ済みと同じ方式）
-        resolveAndApply(searchResult.forests)
       } catch (err) {
         setError('森林データの検索に失敗しました')
         console.error(err)
@@ -116,10 +117,10 @@ export function useForestSearch(
         setIsLoading(false)
       }
     },
-    [radiusMeters, searchFn, resolveAndApply]
+    [radiusMeters, searchFn]
   )
 
-  // 地図中心での追加検索（住所解決はしない）
+  // 地図中心での追加検索
   const lastMapCenterRef = useRef<{ lat: number; lng: number } | null>(null)
 
   const searchAt = useCallback(
@@ -176,7 +177,6 @@ export function useForestSearch(
   useEffect(() => {
     if (!position) return
 
-    // 検索半径が変わった場合は再検索
     if (lastRadiusRef.current !== radiusMeters) {
       lastRadiusRef.current = radiusMeters
       doSearch(position)
@@ -184,26 +184,29 @@ export function useForestSearch(
     }
 
     const lastPos = lastSearchPositionRef.current
-
-    // 初回検索
     if (!lastPos) {
       doSearch(position)
       return
     }
 
-    // 前回の検索位置からの距離を計算
     const distance = calculateDistance(
-      lastPos.latitude,
-      lastPos.longitude,
-      position.latitude,
-      position.longitude
+      lastPos.latitude, lastPos.longitude,
+      position.latitude, position.longitude
     )
-
-    // 一定距離以上移動した場合のみ再検索
     if (distance >= minDistanceChange) {
       doSearch(position)
     }
   }, [position, minDistanceChange, doSearch, radiusMeters])
 
-  return { result, isLoading, error, refresh, searchAt }
+  // 最寄りの森の住所を自動解決
+  const nearestId = result?.nearest?.id
+  useEffect(() => {
+    if (result?.nearest && !result.nearest.address) {
+      resolveAddress(result.nearest)
+    }
+  // nearestIdだけを依存にして無限ループを防ぐ
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nearestId, resolveAddress])
+
+  return { result, isLoading, error, refresh, searchAt, resolveAddress }
 }
