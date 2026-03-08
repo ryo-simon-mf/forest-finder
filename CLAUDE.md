@@ -5,13 +5,15 @@
 GPSで現在地を取得し、近くの森林・コンビニ・駅を検知して距離を表示するWebアプリケーション。
 PWA（Progressive Web App）としてiOS/Androidでもネイティブアプリのように動作。
 
-**最終更新:** 2026-03-06
+**最終更新:** 2026-03-08
 
 ## 現在のステータス
 
 - 森林（`/`）、国土数値情報森林（`/kokudo`）、コンビニ（`/konbini`）、駅（`/station`）の4ページ稼働
 - AnimatedPolyline（経路アニメーション）実装済み
-- 変更は未コミット・未デプロイ
+- OSRMルーティング経路表示実装済み
+- 地図UI改善（現在地ボタン、森林マーカー色分け、吹き出し豆知識）実装済み
+- GitHub Pages + Cloudflare Pages デプロイ済み
 
 ## 対応プラットフォーム
 
@@ -84,14 +86,19 @@ NEXT_PUBLIC_GSI_API_KEY=    # 国土地理院API（必要な場合）
 
 - `DEPLOY_TARGET=github` で GitHub Pages 用ビルド（basePath: `/forest-finder`）
 - Cloudflare Pages: Framework: None, Build: `NODE_OPTIONS=--max-old-space-size=4096 npm run build`, Output: `out`
+- Cloudflare Pages の Preview branch は **None** に設定済み（`gh-pages` ブランチのビルド失敗を防止）
+- デプロイ手順:
+  1. `git push origin master` → Cloudflare Pages 自動デプロイ
+  2. `rm -rf .next && DEPLOY_TARGET=github npm run build` → `npx gh-pages -d out` → GitHub Pages デプロイ
 
 ## 必須要件：POIデータの住所表示
 
 **すべてのPOIエントリには住所を表示すること。** データソースに関わらず、住所が未設定の場合は国土地理院の逆ジオコーディングAPI（`mreversegeocoder.gsi.go.jp`）で座標から住所を自動取得する。
 
-- **表示箇所**: 地図ポップアップ（Marker Popup）および画面下部の最寄りPOIオーバーレイの両方
-- **住所未取得時**: 「住所を取得中...」を表示する
-- **実装**: `src/lib/reverseGeocode.ts` で逆ジオコーディング、各検索フックで検索後に自動解決
+- **表示箇所**: 画面下部の最寄りPOIオーバーレイ（マーカーPopupは現在無効化中）
+- **住所未取得時**: 「住所取得中...」をLoadingDotsアニメーション付きで表示
+- **実装**: `src/lib/reverseGeocode.ts` で逆ジオコーディング、`useForestSearch` の `resolveAddress` で単体オンデマンド解決
+- **住所解決方式**: バッチ処理ではなく、表示中の森林（最寄り or ユーザー選択）のみオンデマンドで解決
 - **新しいデータソースを追加する際も、住所表示が必ず動作することを確認すること**
 
 ## POIタイプ別設定
@@ -120,9 +127,41 @@ NEXT_PUBLIC_GSI_API_KEY=    # 国土地理院API（必要な場合）
 - Android インストールプロンプト対応
 - スプラッシュスクリーン設定
 
+## 過去に解決した技術課題
+
+### 地図の自動センタリング問題
+- **問題**: GPS更新のたびにMapUpdaterが地図をGPS位置にスナップバックし、パン操作が無効化された
+- **解決**: MapUpdaterを初回ロードと新ルート表示時のみセンタリングするように変更。「現在地に戻る」ボタンを追加
+
+### ズームインで森林マーカーが消える問題
+- **問題**: 検索半径がズームに連動して縮小し、既に発見した森林が消えた
+- **解決**: ラチェット方式 `setMapRadius((prev) => Math.max(prev, quantized))` で半径が縮小しないようにした
+
+### パン先の森林が表示されない問題
+- **問題**: GPS位置基準の検索のみで、地図をパンした先の森林が表示されなかった
+- **解決**: BoundsWatcherの`moveend`イベントで`searchAt`を呼び出し、パン先の森林をマージ追加
+
+### 住所表示が遅い・反映されない問題
+- **問題**: (1) バッチ住所解決が全森林を対象にしてAPI過負荷 (2) マージ処理で住所付き森林が上書きされた (3) selectedForestが独立stateで住所更新が反映されなかった
+- **解決**:
+  1. バッチ→単体オンデマンド方式に変更（`resolveAddress`で1件ずつ解決）
+  2. マージ時に`if (!existingMap.has(f.id))`で既存森林を保持
+  3. `selectedForestId`（IDのみ保持）→ `forestResult.forests.find()`で最新オブジェクトを参照
+
+### Cloudflare Pages gh-pagesブランチのビルド失敗
+- **問題**: `npx gh-pages`がgh-pagesブランチにpush → Cloudflareがビルド試行 → package.jsonなしでエラー
+- **解決**: Preview branchを「None」に設定し、masterブランチのみ自動デプロイ
+
+## 地図UI設計メモ
+
+- **現在地ボタン**: MapContainer外にfixed配置（Leafletのoverflow:hiddenを回避するため）
+- **マーカーPopup**: 現在コメントアウトで無効化中
+- **森林マーカー色**: 最寄り=テーマ緑、それ以外=薄緑 `#8fd4a4`
+- **吹き出し（ForestTipBubble）**: 5秒表示/15秒非表示サイクル、シャッフル表示、fade+translateYアニメーション
+- **下部カード**: 固定高さ140px、住所は区/市/郡/町/村で改行
+
 ## 次のステップ
 
-- [ ] 変更をコミット＆プッシュ＆デプロイ確認
 - [ ] トップページにPOI切り替えタブの追加検討
 - [ ] 実機テスト（iOS/Android）
 - [ ] コンビニ・駅ページのPWAマニフェスト対応
