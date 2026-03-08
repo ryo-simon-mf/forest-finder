@@ -9,6 +9,7 @@ interface ForestMarker {
   lat: number
   lon: number
   isNearest?: boolean
+  isSelected?: boolean
 }
 
 interface MapLibre3DViewerProps {
@@ -27,24 +28,27 @@ interface MapLibre3DViewerProps {
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron'
 const ANIM_DURATION = 1500
 
-// SVGアイコンをMapLibre用のImageDataに変換
+// SVGアイコンをMapLibre用のImageDataに変換（アスペクト比を維持）
+// sizeはアイコンの高さ基準（icon.svgは36x64の縦長）
 function createIconImage(
   svgSrc: string,
-  size: number,
+  height: number,
   color: string
 ): Promise<{ width: number; height: number; data: Uint8ClampedArray }> {
   return new Promise((resolve) => {
     const canvas = document.createElement('canvas')
     const ratio = window.devicePixelRatio || 1
-    const px = size * ratio
-    canvas.width = px
-    canvas.height = px
+    // icon.svgのアスペクト比: 36:64
+    const aspect = 36 / 64
+    const pxH = Math.round(height * ratio)
+    const pxW = Math.round(pxH * aspect)
+    canvas.width = pxW
+    canvas.height = pxH
     const ctx = canvas.getContext('2d')!
     const img = new Image()
     img.onload = () => {
-      ctx.drawImage(img, 0, 0, px, px)
-      // アイコンの不透明ピクセルを指定色で塗りつぶす
-      const imageData = ctx.getImageData(0, 0, px, px)
+      ctx.drawImage(img, 0, 0, pxW, pxH)
+      const imageData = ctx.getImageData(0, 0, pxW, pxH)
       const [r, g, b] = parseColor(color)
       for (let i = 0; i < imageData.data.length; i += 4) {
         if (imageData.data[i + 3] > 0) {
@@ -53,7 +57,7 @@ function createIconImage(
           imageData.data[i + 2] = b
         }
       }
-      resolve({ width: px, height: px, data: imageData.data })
+      resolve({ width: pxW, height: pxH, data: imageData.data })
     }
     img.src = svgSrc
   })
@@ -352,9 +356,28 @@ export default function MapLibre3DViewer({
     const map = mapRef.current
     if (!map || !mapLoaded || !useMobile) return
 
+    // 通常マーカー（クラスタ対象）: nearest/selectedは除外
+    const normalFeatures = forestMarkers
+      .map((fm, idx) => ({ fm, idx }))
+      .filter(({ fm }) => !fm.isNearest && !fm.isSelected)
+
     const sourceData: GeoJSON.FeatureCollection = {
       type: 'FeatureCollection',
-      features: forestMarkers.map((fm, idx) => ({
+      features: normalFeatures.map(({ fm, idx }) => ({
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: [fm.lon, fm.lat] },
+        properties: { idx, isNearest: 0 },
+      })),
+    }
+
+    // ピン留めマーカー（nearest + selected）: クラスタ対象外、常に表示
+    const pinnedFeatures = forestMarkers
+      .map((fm, idx) => ({ fm, idx }))
+      .filter(({ fm }) => fm.isNearest || fm.isSelected)
+
+    const pinnedData: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: pinnedFeatures.map(({ fm, idx }) => ({
         type: 'Feature' as const,
         geometry: { type: 'Point' as const, coordinates: [fm.lon, fm.lat] },
         properties: { idx, isNearest: fm.isNearest ? 1 : 0 },
@@ -363,23 +386,23 @@ export default function MapLibre3DViewer({
 
     if (map.getSource('forests')) {
       ;(map.getSource('forests') as maplibregl.GeoJSONSource).setData(sourceData)
+      ;(map.getSource('forests-pinned') as maplibregl.GeoJSONSource).setData(pinnedData)
       return
     }
 
     // SVGアイコンをMapLibreに登録してからレイヤー追加
     const setupLayers = async () => {
       if (!mobileIconsLoadedRef.current) {
-        const [nearestIcon, normalIcon, clusterIcon] = await Promise.all([
+        const [nearestIcon, normalIcon] = await Promise.all([
           createIconImage(iconImg.src, 32, 'rgba(27, 172, 83, 1)'),
-          createIconImage(iconImg.src, 24, '#8fd4a4'),
           createIconImage(iconImg.src, 24, '#8fd4a4'),
         ])
         map.addImage('forest-nearest', nearestIcon, { pixelRatio: window.devicePixelRatio || 1 })
         map.addImage('forest-normal', normalIcon, { pixelRatio: window.devicePixelRatio || 1 })
-        map.addImage('forest-cluster', clusterIcon, { pixelRatio: window.devicePixelRatio || 1 })
         mobileIconsLoadedRef.current = true
       }
 
+      // クラスタ対象ソース（通常マーカー）
       map.addSource('forests', {
         type: 'geojson',
         data: sourceData,
@@ -388,25 +411,44 @@ export default function MapLibre3DViewer({
         clusterRadius: 50,
       })
 
-      // クラスタ — 通常マーカーと同じ見た目（件数なし、サイズ同じ）
+      // ピン留めソース（nearest + selected、クラスタ対象外）
+      map.addSource('forests-pinned', {
+        type: 'geojson',
+        data: pinnedData,
+      })
+
+      // クラスタ — 通常マーカーと同じ見た目
       map.addLayer({
         id: 'clusters',
         type: 'symbol',
         source: 'forests',
         filter: ['has', 'point_count'],
         layout: {
-          'icon-image': 'forest-cluster',
+          'icon-image': 'forest-normal',
           'icon-size': 1,
           'icon-allow-overlap': true,
         },
       })
 
-      // 個別マーカー — 最寄りと通常で別アイコン
+      // クラスタ内の個別マーカー
       map.addLayer({
-        id: 'unclustered-nearest',
+        id: 'unclustered-normal',
         type: 'symbol',
         source: 'forests',
-        filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'isNearest'], 1]],
+        filter: ['!', ['has', 'point_count']],
+        layout: {
+          'icon-image': 'forest-normal',
+          'icon-size': 1,
+          'icon-allow-overlap': true,
+        },
+      })
+
+      // ピン留めマーカー（常に最前面に表示）
+      map.addLayer({
+        id: 'pinned-nearest',
+        type: 'symbol',
+        source: 'forests-pinned',
+        filter: ['==', ['get', 'isNearest'], 1],
         layout: {
           'icon-image': 'forest-nearest',
           'icon-size': 1,
@@ -415,10 +457,10 @@ export default function MapLibre3DViewer({
       })
 
       map.addLayer({
-        id: 'unclustered-normal',
+        id: 'pinned-selected',
         type: 'symbol',
-        source: 'forests',
-        filter: ['all', ['!', ['has', 'point_count']], ['!=', ['get', 'isNearest'], 1]],
+        source: 'forests-pinned',
+        filter: ['!=', ['get', 'isNearest'], 1],
         layout: {
           'icon-image': 'forest-normal',
           'icon-size': 1,
@@ -454,7 +496,7 @@ export default function MapLibre3DViewer({
       // 個別マーカークリック → 森林選択
       const handleUnclusteredClick = (e: maplibregl.MapMouseEvent) => {
         const features = map.queryRenderedFeatures(e.point, {
-          layers: ['unclustered-nearest', 'unclustered-normal'],
+          layers: ['unclustered-normal', 'pinned-nearest', 'pinned-selected'],
         })
         if (!features.length) return
         const idx = features[0].properties?.idx
@@ -462,8 +504,9 @@ export default function MapLibre3DViewer({
           forestClickHandlerRef.current(idx)
         }
       }
-      map.on('click', 'unclustered-nearest', handleUnclusteredClick)
       map.on('click', 'unclustered-normal', handleUnclusteredClick)
+      map.on('click', 'pinned-nearest', handleUnclusteredClick)
+      map.on('click', 'pinned-selected', handleUnclusteredClick)
     }
 
     setupLayers()

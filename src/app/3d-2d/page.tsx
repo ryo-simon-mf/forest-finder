@@ -134,6 +134,7 @@ export default function Map3D2DPage() {
     lat: f.center.latitude,
     lon: f.center.longitude,
     isNearest: f.id === nearestId,
+    isSelected: f.id === selectedForestId,
   }))
 
   const handleForestClick = useCallback(
