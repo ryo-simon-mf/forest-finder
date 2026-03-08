@@ -66,8 +66,8 @@ export function useRoute(
           }
         }
       })
-      .catch(() => {
-        // On error, keep the previous route visible
+      .catch((err) => {
+        console.error('Route fetch failed:', err)
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false)

@@ -48,7 +48,6 @@ next-env.d.ts
 # Cesium assets (copied during build)
 /public/cesium/
 
-# PLATEAU 3D (開発中・未デプロイ)
-/src/app/3d/
+# Cesium/PLATEAU (旧実装・未使用)
 /src/components/CesiumViewer.tsx
 /src/services/plateauService.ts

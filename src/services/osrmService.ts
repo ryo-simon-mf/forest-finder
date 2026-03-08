@@ -1,4 +1,5 @@
-const OSRM_BASE = 'https://router.project-osrm.org/route/v1/foot'
+// OSRM foot profile (OpenStreetMap.de) — 正確な徒歩ルーティング
+const OSRM_BASE = 'https://routing.openstreetmap.de/routed-foot/route/v1/foot'
 
 export async function fetchWalkingRoute(
   startLat: number,

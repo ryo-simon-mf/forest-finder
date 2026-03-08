@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import iconImg from '@/img/icon.png'
+import iconImg from '@/img/icon.svg'
 
 const TIPS = [
   '森林浴は\nストレスホルモンを\n13%減らします',

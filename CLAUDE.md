@@ -160,6 +160,15 @@ NEXT_PUBLIC_GSI_API_KEY=    # 国土地理院API（必要な場合）
 - **吹き出し（ForestTipBubble）**: 5秒表示/15秒非表示サイクル、シャッフル表示、fade+translateYアニメーション
 - **下部カード**: 固定高さ140px、住所は区/市/郡/町/村で改行
 
+## 3Dマップ (`/3d`)
+
+- Cesium + PLATEAU → **MapLibre GL JS** に移行済み（PLATEAUエリア制限なし、全国対応）
+- `src/components/MapLibre3DViewer.tsx`: ベクタータイル + `fill-extrusion` で3D建物表示
+- `src/app/3d/page.tsx`: MapLibre版3Dページ
+- 地図の回転・傾き（pitch/bearing）はジェスチャーで操作可能
+- 無料タイル: OpenFreeMap（APIキー不要）
+- 今後の可能性: スタイルカスタマイズ、建物ハイライト、アニメーション付きカメラ移動など
+
 ## 次のステップ
 
 - [ ] トップページにPOI切り替えタブの追加検討

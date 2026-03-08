@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { MapContainer, TileLayer, Marker, Polyline, AttributionControl, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, AttributionControl, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { Position } from '@/types/geolocation'
 import type { ForestArea } from '@/types/forest'
 import type { POIType } from '@/types/poi'
 // import type { DisplayMode } from '@/lib/distance'
-import iconImg from '@/img/icon.png'
+import iconImg from '@/img/icon.svg'
 
 // 地図スタイル定義（認証不要のタイルのみ使用）
 const MAP_STYLES = {
@@ -232,17 +232,25 @@ function MapUpdater({ position, route }: { position: Position; route?: [number, 
   const initialRef = useRef(true)
 
   useEffect(() => {
+    const fitRoute = (r: [number, number][]) => {
+      const bounds = L.latLngBounds(r)
+      const mapSize = map.getSize()
+      const topPad = Math.round(mapSize.y * 0.08)
+      const bottomPad = Math.round(mapSize.y * 0.22)
+      const sidePad = Math.round(mapSize.x * 0.1)
+      map.fitBounds(bounds, {
+        paddingTopLeft: [sidePad, topPad],
+        paddingBottomRight: [sidePad, bottomPad],
+        maxZoom: 19,
+      })
+    }
+
     // 初回のみ: ルートがあればfitBounds、なければ現在地にセット
     if (initialRef.current) {
       initialRef.current = false
       if (route && route.length > 0) {
         const key = `${route[0][0]},${route[0][1]}-${route[route.length - 1][0]},${route[route.length - 1][1]}`
-        const bounds = L.latLngBounds(route)
-        const mapSize = map.getSize()
-        const bottomPad = Math.round(mapSize.y * 0.25)
-        const sidePad = Math.round(mapSize.x * 0.08)
-        const topPad = Math.round(mapSize.y * 0.08)
-        map.fitBounds(bounds, { paddingTopLeft: [sidePad, topPad], paddingBottomRight: [sidePad, bottomPad], maxZoom: 16 })
+        fitRoute(route)
         fittedRouteRef.current = key
       }
       return
@@ -252,12 +260,7 @@ function MapUpdater({ position, route }: { position: Position; route?: [number, 
     if (route && route.length > 0) {
       const key = `${route[0][0]},${route[0][1]}-${route[route.length - 1][0]},${route[route.length - 1][1]}`
       if (fittedRouteRef.current !== key) {
-        const bounds = L.latLngBounds(route)
-        const mapSize = map.getSize()
-        const bottomPad = Math.round(mapSize.y * 0.25)
-        const sidePad = Math.round(mapSize.x * 0.08)
-        const topPad = Math.round(mapSize.y * 0.08)
-        map.fitBounds(bounds, { paddingTopLeft: [sidePad, topPad], paddingBottomRight: [sidePad, bottomPad], maxZoom: 16 })
+        fitRoute(route)
         fittedRouteRef.current = key
       }
     }
@@ -309,28 +312,39 @@ function BoundsWatcher({ onBoundsChange, onMapCenterChange }: { onBoundsChange: 
 const ANIM_DURATION = 1500
 
 function AnimatedPolyline({ route, poiType = 'forest' }: { route: [number, number][]; poiType?: POIType }) {
-  const [visiblePoints, setVisiblePoints] = useState<[number, number][]>([])
-  const routeRef = useRef<[number, number][]>(route)
+  const map = useMap()
+  const polylineRef = useRef<L.Polyline | null>(null)
 
-  // routeの参照を常に最新に保つ
-  routeRef.current = route
-
-  // routeの始点・終点からキーを生成し、安定した依存値にする
   const routeKey = `${route[0][0]},${route[0][1]}-${route[route.length - 1][0]},${route[route.length - 1][1]}`
 
   useEffect(() => {
-    const currentRoute = routeRef.current
-    const totalPoints = currentRoute.length
-    const startTime = performance.now()
+    // 前回のポリラインを削除
+    if (polylineRef.current) {
+      polylineRef.current.remove()
+      polylineRef.current = null
+    }
 
+    const totalPoints = route.length
+    const polyline = L.polyline([], {
+      color: POI_ROUTE_COLORS[poiType],
+      weight: 6,
+      opacity: 0.8,
+      dashArray: '8, 12',
+      dashOffset: '0',
+      lineJoin: 'miter',
+      lineCap: 'square',
+    }).addTo(map)
+    polylineRef.current = polyline
+
+    const startTime = performance.now()
     let rafId: number
+
     const animate = (now: number) => {
       const elapsed = now - startTime
       const progress = Math.min(elapsed / ANIM_DURATION, 1)
-      // ease-out曲線
       const eased = 1 - Math.pow(1 - progress, 3)
       const count = Math.max(2, Math.ceil(totalPoints * eased))
-      setVisiblePoints(currentRoute.slice(0, count))
+      polyline.setLatLngs(route.slice(0, count))
 
       if (progress < 1) {
         rafId = requestAnimationFrame(animate)
@@ -338,25 +352,17 @@ function AnimatedPolyline({ route, poiType = 'forest' }: { route: [number, numbe
     }
     rafId = requestAnimationFrame(animate)
 
-    return () => cancelAnimationFrame(rafId)
-  }, [routeKey])
+    return () => {
+      cancelAnimationFrame(rafId)
+      if (polylineRef.current) {
+        polylineRef.current.remove()
+        polylineRef.current = null
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeKey, map, poiType])
 
-  if (visiblePoints.length < 2) return null
-
-  return (
-    <Polyline
-      positions={visiblePoints}
-      pathOptions={{
-        color: POI_ROUTE_COLORS[poiType],
-        weight: 6,
-        opacity: 0.8,
-        dashArray: '8, 12',
-        dashOffset: '0',
-        lineJoin: 'miter',
-        lineCap: 'square',
-      }}
-    />
-  )
+  return null
 }
 
 export function Map({ position, forests = [], heading, onBoundsChange, onMapCenterChange, route, onForestSelect, poiType = 'forest' }: MapProps) {

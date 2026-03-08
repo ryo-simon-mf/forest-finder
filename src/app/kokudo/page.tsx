@@ -10,7 +10,7 @@ import { LoadingScreen } from '@/components/LoadingScreen'
 import { MapWrapper } from '@/components/MapWrapper'
 import { formatDistance, getEstimatedArrivalTime } from '@/lib/distance'
 import type { ForestArea } from '@/types/forest'
-import iconImg from '@/img/icon.png'
+import iconImg from '@/img/icon.svg'
 import {
   searchKokudoForestsLocal,
   preloadKokudoData,
