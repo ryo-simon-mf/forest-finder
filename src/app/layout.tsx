@@ -1,7 +1,14 @@
 import type { Metadata, Viewport } from 'next'
 import localFont from 'next/font/local'
+import { Noto_Sans_JP } from 'next/font/google'
 import { ServiceWorkerUpdater } from '@/components/ServiceWorkerUpdater'
 import './globals.css'
+
+const notoSansJP = Noto_Sans_JP({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-noto-sans-jp',
+})
 
 const geistSans = localFont({
   src: './fonts/GeistVF.woff',
@@ -47,7 +54,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${notoSansJP.variable} ${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ServiceWorkerUpdater />
         {children}

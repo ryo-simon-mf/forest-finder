@@ -1,7 +1,7 @@
 'use client'
 
 import type { GeolocationStatus } from '@/types/geolocation'
-import iconImg from '@/img/icon.svg'
+import logoImg from '@/img/logo.png'
 
 interface LocationPermissionProps {
   status: GeolocationStatus
@@ -19,13 +19,11 @@ export function LocationPermission({
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-[100dvh] bg-forest text-white p-6">
-      <div className="max-w-md w-full text-center">
-        <div className="mb-6">
-          <img src={iconImg.src} alt="" className="h-32 w-auto mx-auto" />
-        </div>
-
-        <h1 className="text-3xl font-bold mb-6">最寄りの森</h1>
+    <div className="flex flex-col items-center h-[100dvh] bg-forest text-white p-6">
+      <div className="flex-1 flex items-end pb-8">
+        <img src={logoImg.src} alt="最寄りの森" className="h-48 w-auto" />
+      </div>
+      <div className="flex-1 flex flex-col items-center pt-6 max-w-md w-full text-center">
 
         {/* <p className="text-white/90 text-base leading-relaxed mb-10">
           森はストレスの特効薬です。
@@ -39,7 +37,7 @@ export function LocationPermission({
               onClick={onRequestPermission}
               className="bg-white text-forest-dark font-semibold py-3 px-10 rounded-lg transition-colors hover:bg-white/90 text-lg"
             >
-              <span className="mr-2">&#x1F50D;</span>検索する
+              検索する
             </button>
             <p className="text-white/70 text-sm mt-4">
               ※位置情報の許可が必要です。

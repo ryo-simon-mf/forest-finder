@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import iconImg from '@/img/icon.svg'
+import logoImg from '@/img/logo.png'
 
 const TIPS = [
   '森林浴は\nストレスホルモンを\n13%減らします',
@@ -23,8 +23,12 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 export function LoadingScreen() {
-  const [shuffled] = useState(() => shuffle(TIPS))
+  const [shuffled, setShuffled] = useState(TIPS)
   const [tipIndex, setTipIndex] = useState(0)
+
+  useEffect(() => {
+    setShuffled(shuffle(TIPS))
+  }, [])
 
   useEffect(() => {
     const t1 = setTimeout(() => setTipIndex(1), SWITCH_INTERVAL)
@@ -33,18 +37,20 @@ export function LoadingScreen() {
   }, [])
 
   return (
-    <main className="h-[100dvh] flex flex-col items-center justify-center bg-forest text-white px-6">
-      <img src={iconImg.src} alt="" className="h-36 w-auto mb-10" />
-
-      <div className="w-40 h-1.5 bg-white/30 overflow-hidden mb-6">
-        <div className="h-full bg-white animate-loading-progress" />
+    <main className="h-[100dvh] flex flex-col items-center bg-forest text-white px-6">
+      <div className="flex-1 flex items-end pb-8">
+        <img src={logoImg.src} alt="最寄りの森" className="h-48 w-auto" />
       </div>
+      <div className="flex-1 flex flex-col items-center pt-6">
+        <div className="w-40 h-1.5 bg-white/30 overflow-hidden mb-6">
+          <div className="h-full bg-white animate-loading-progress" />
+        </div>
 
-      {/* 豆知識テキスト（高さ固定で中身だけ切替） */}
-      <div className="h-[4.5rem]">
-        <p className="text-white/90 text-base text-center leading-relaxed whitespace-pre-line">
-          {shuffled[tipIndex]}
-        </p>
+        <div className="h-[4.5rem]">
+          <p className="text-white/90 text-base text-center leading-relaxed whitespace-pre-line">
+            {shuffled[tipIndex]}
+          </p>
+        </div>
       </div>
     </main>
   )

@@ -163,16 +163,7 @@ export default function Map3D2DPage() {
     }
   }, [status, startWatching, stopWatching])
 
-  // ランディング画面
-  if (!started || status === 'denied' || status === 'unavailable' || status === 'error') {
-    return (
-      <LocationPermission
-        status={status}
-        error={error}
-        onRequestPermission={handleStart}
-      />
-    )
-  }
+  const showLanding = !started || status === 'denied' || status === 'unavailable' || status === 'error'
 
   const displayForest = routeTarget
   const walkingMinutes = displayForest?.distance
@@ -204,13 +195,24 @@ export default function Map3D2DPage() {
           />
         )}
 
-        {/* ローディングオーバーレイ（マップの上に重ねて表示） */}
+        {/* ローディングオーバーレイ（常に裏で描画、ランディングの下に配置） */}
         {!animateReady && (
           <div
             className="absolute inset-0 z-[2000] transition-opacity duration-500"
             style={{ opacity: isReady ? 0 : 1 }}
           >
             <LoadingScreen />
+          </div>
+        )}
+
+        {/* ランディング画面（最前面、ローディングの上に重ねる） */}
+        {showLanding && (
+          <div className="absolute inset-0 z-[2001]">
+            <LocationPermission
+              status={status}
+              error={error}
+              onRequestPermission={handleStart}
+            />
           </div>
         )}
 
