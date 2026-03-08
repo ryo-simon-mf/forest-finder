@@ -518,7 +518,12 @@ export default function MapLibre3DViewer({
       },
       paint: {
         'line-color': 'rgba(27, 172, 83, 1)',
-        'line-width': 4,
+        'line-width': [
+          'interpolate', ['linear'], ['zoom'],
+          12, 3,
+          15, 5,
+          18, 8,
+        ],
         'line-opacity': 0.85,
         'line-dasharray': [2, 3],
       },
