@@ -27,6 +27,48 @@ interface MapLibre3DViewerProps {
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron'
 const ANIM_DURATION = 1500
 
+// SVGアイコンをMapLibre用のImageDataに変換
+function createIconImage(
+  svgSrc: string,
+  size: number,
+  color: string
+): Promise<{ width: number; height: number; data: Uint8ClampedArray }> {
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas')
+    const ratio = window.devicePixelRatio || 1
+    const px = size * ratio
+    canvas.width = px
+    canvas.height = px
+    const ctx = canvas.getContext('2d')!
+    const img = new Image()
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, px, px)
+      // アイコンの不透明ピクセルを指定色で塗りつぶす
+      const imageData = ctx.getImageData(0, 0, px, px)
+      const [r, g, b] = parseColor(color)
+      for (let i = 0; i < imageData.data.length; i += 4) {
+        if (imageData.data[i + 3] > 0) {
+          imageData.data[i] = r
+          imageData.data[i + 1] = g
+          imageData.data[i + 2] = b
+        }
+      }
+      resolve({ width: px, height: px, data: imageData.data })
+    }
+    img.src = svgSrc
+  })
+}
+
+function parseColor(color: string): [number, number, number] {
+  if (color.startsWith('#')) {
+    const hex = color.slice(1)
+    return [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16)]
+  }
+  const m = color.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/)
+  if (m) return [+m[1], +m[2], +m[3]]
+  return [0, 0, 0]
+}
+
 // タッチデバイス判定（スマホ/タブレット分岐）
 function isTouchDevice(): boolean {
   if (typeof window === 'undefined') return false
@@ -301,9 +343,10 @@ export default function MapLibre3DViewer({
     [onForestClick]
   )
 
-  // --- モバイル: GeoJSON source + クラスタリング（WebGL描画） ---
+  // --- モバイル: GeoJSON source + クラスタリング（symbol layer + SVGアイコン） ---
   const forestClickHandlerRef = useRef(handleForestClick)
   forestClickHandlerRef.current = handleForestClick
+  const mobileIconsLoadedRef = useRef(false)
 
   useEffect(() => {
     const map = mapRef.current
@@ -323,92 +366,107 @@ export default function MapLibre3DViewer({
       return
     }
 
-    map.addSource('forests', {
-      type: 'geojson',
-      data: sourceData,
-      cluster: true,
-      clusterMaxZoom: 14,
-      clusterRadius: 50,
-    })
-
-    // クラスタ円
-    map.addLayer({
-      id: 'clusters',
-      type: 'circle',
-      source: 'forests',
-      filter: ['has', 'point_count'],
-      paint: {
-        'circle-color': '#1bac53',
-        'circle-radius': [
-          'step', ['get', 'point_count'],
-          18,   // default
-          10, 22,
-          50, 28,
-          200, 34,
-        ],
-        'circle-opacity': 0.75,
-        'circle-stroke-width': 2,
-        'circle-stroke-color': 'rgba(255,255,255,0.8)',
-      },
-    })
-
-    // クラスタ件数ラベル
-    map.addLayer({
-      id: 'cluster-count',
-      type: 'symbol',
-      source: 'forests',
-      filter: ['has', 'point_count'],
-      layout: {
-        'text-field': '{point_count_abbreviated}',
-        'text-size': 13,
-      },
-      paint: {
-        'text-color': '#ffffff',
-      },
-    })
-
-    // 個別マーカー（非クラスタ）— 最寄りとそれ以外で色・サイズ分け
-    map.addLayer({
-      id: 'unclustered-point',
-      type: 'circle',
-      source: 'forests',
-      filter: ['!', ['has', 'point_count']],
-      paint: {
-        'circle-color': ['case', ['==', ['get', 'isNearest'], 1], 'rgba(27, 172, 83, 1)', '#8fd4a4'],
-        'circle-radius': ['case', ['==', ['get', 'isNearest'], 1], 10, 7],
-        'circle-stroke-width': 2,
-        'circle-stroke-color': '#ffffff',
-        'circle-opacity': 0.9,
-      },
-    })
-
-    // クラスタクリック → ズームイン
-    map.on('click', 'clusters', (e) => {
-      const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] })
-      if (!features.length) return
-      const clusterId = features[0].properties?.cluster_id
-      const source = map.getSource('forests') as maplibregl.GeoJSONSource
-      source.getClusterExpansionZoom(clusterId).then((zoom) => {
-        const coords = (features[0].geometry as GeoJSON.Point).coordinates
-        map.easeTo({ center: [coords[0], coords[1]], zoom: zoom + 1, duration: 500 })
-      })
-    })
-
-    // 個別マーカークリック → 森林選択
-    map.on('click', 'unclustered-point', (e) => {
-      const features = map.queryRenderedFeatures(e.point, { layers: ['unclustered-point'] })
-      if (!features.length) return
-      const idx = features[0].properties?.idx
-      if (idx !== undefined) {
-        forestClickHandlerRef.current(idx)
+    // SVGアイコンをMapLibreに登録してからレイヤー追加
+    const setupLayers = async () => {
+      if (!mobileIconsLoadedRef.current) {
+        const [nearestIcon, normalIcon, clusterIcon] = await Promise.all([
+          createIconImage(iconImg.src, 32, 'rgba(27, 172, 83, 1)'),
+          createIconImage(iconImg.src, 24, '#8fd4a4'),
+          createIconImage(iconImg.src, 24, '#8fd4a4'),
+        ])
+        map.addImage('forest-nearest', nearestIcon, { pixelRatio: window.devicePixelRatio || 1 })
+        map.addImage('forest-normal', normalIcon, { pixelRatio: window.devicePixelRatio || 1 })
+        map.addImage('forest-cluster', clusterIcon, { pixelRatio: window.devicePixelRatio || 1 })
+        mobileIconsLoadedRef.current = true
       }
-    })
 
-    // ホバーカーソル
-    map.on('mouseenter', 'clusters', () => { map.getCanvas().style.cursor = 'pointer' })
-    map.on('mouseleave', 'clusters', () => { map.getCanvas().style.cursor = '' })
-    map.on('mouseenter', 'unclustered-point', () => { map.getCanvas().style.cursor = 'pointer' })
-    map.on('mouseleave', 'unclustered-point', () => { map.getCanvas().style.cursor = '' })
+      map.addSource('forests', {
+        type: 'geojson',
+        data: sourceData,
+        cluster: true,
+        clusterMaxZoom: 14,
+        clusterRadius: 50,
+      })
+
+      // クラスタ — 通常マーカーと同じ見た目（件数なし、サイズ同じ）
+      map.addLayer({
+        id: 'clusters',
+        type: 'symbol',
+        source: 'forests',
+        filter: ['has', 'point_count'],
+        layout: {
+          'icon-image': 'forest-cluster',
+          'icon-size': 1,
+          'icon-allow-overlap': true,
+        },
+      })
+
+      // 個別マーカー — 最寄りと通常で別アイコン
+      map.addLayer({
+        id: 'unclustered-nearest',
+        type: 'symbol',
+        source: 'forests',
+        filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'isNearest'], 1]],
+        layout: {
+          'icon-image': 'forest-nearest',
+          'icon-size': 1,
+          'icon-allow-overlap': true,
+        },
+      })
+
+      map.addLayer({
+        id: 'unclustered-normal',
+        type: 'symbol',
+        source: 'forests',
+        filter: ['all', ['!', ['has', 'point_count']], ['!=', ['get', 'isNearest'], 1]],
+        layout: {
+          'icon-image': 'forest-normal',
+          'icon-size': 1,
+          'icon-allow-overlap': true,
+        },
+      })
+
+      // クラスタタップ → ランダムに1つ選択 + ズームインして周囲表示
+      map.on('click', 'clusters', (e) => {
+        const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] })
+        if (!features.length) return
+        const clusterId = features[0].properties?.cluster_id
+        const source = map.getSource('forests') as maplibregl.GeoJSONSource
+
+        // クラスタ内のleafを取得してランダム選択
+        source.getClusterLeaves(clusterId, 100, 0).then((leaves) => {
+          if (leaves.length > 0) {
+            const randomLeaf = leaves[Math.floor(Math.random() * leaves.length)]
+            const idx = randomLeaf.properties?.idx
+            if (idx !== undefined) {
+              forestClickHandlerRef.current(idx)
+            }
+          }
+        })
+
+        // ズームインして周囲のマーカーを表示
+        source.getClusterExpansionZoom(clusterId).then((zoom) => {
+          const coords = (features[0].geometry as GeoJSON.Point).coordinates
+          map.easeTo({ center: [coords[0], coords[1]], zoom: zoom + 1, duration: 500 })
+        })
+      })
+
+      // 個別マーカークリック → 森林選択
+      const handleUnclusteredClick = (e: maplibregl.MapMouseEvent) => {
+        const features = map.queryRenderedFeatures(e.point, {
+          layers: ['unclustered-nearest', 'unclustered-normal'],
+        })
+        if (!features.length) return
+        const idx = features[0].properties?.idx
+        if (idx !== undefined) {
+          forestClickHandlerRef.current(idx)
+        }
+      }
+      map.on('click', 'unclustered-nearest', handleUnclusteredClick)
+      map.on('click', 'unclustered-normal', handleUnclusteredClick)
+    }
+
+    setupLayers()
   }, [forestMarkers, mapLoaded, useMobile])
 
   // --- PC: DOM Marker（ビューポート内のみ表示 + 差分更新） ---
