@@ -468,14 +468,13 @@ export default function MapLibre3DViewer({
         },
       })
 
-      // クラスタタップ → ランダムに1つ選択 + ズームインして周囲表示
+      // クラスタタップ → ランダムに1つ選択（カメラ移動はルート表示のflyToに任せる）
       map.on('click', 'clusters', (e) => {
         const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] })
         if (!features.length) return
         const clusterId = features[0].properties?.cluster_id
         const source = map.getSource('forests') as maplibregl.GeoJSONSource
 
-        // クラスタ内のleafを取得してランダム選択
         source.getClusterLeaves(clusterId, 100, 0).then((leaves) => {
           if (leaves.length > 0) {
             const randomLeaf = leaves[Math.floor(Math.random() * leaves.length)]
@@ -484,12 +483,6 @@ export default function MapLibre3DViewer({
               forestClickHandlerRef.current(idx)
             }
           }
-        })
-
-        // ズームインして周囲のマーカーを表示
-        source.getClusterExpansionZoom(clusterId).then((zoom) => {
-          const coords = (features[0].geometry as GeoJSON.Point).coordinates
-          map.easeTo({ center: [coords[0], coords[1]], zoom: zoom + 1, duration: 500 })
         })
       })
 
