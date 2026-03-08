@@ -356,37 +356,23 @@ export default function MapLibre3DViewer({
     const map = mapRef.current
     if (!map || !mapLoaded || !useMobile) return
 
-    // 通常マーカー（クラスタ対象）: nearest/selectedは除外
-    const normalFeatures = forestMarkers
-      .map((fm, idx) => ({ fm, idx }))
-      .filter(({ fm }) => !fm.isNearest && !fm.isSelected)
-
     const sourceData: GeoJSON.FeatureCollection = {
       type: 'FeatureCollection',
-      features: normalFeatures.map(({ fm, idx }) => ({
+      features: forestMarkers.map((fm, idx) => ({
         type: 'Feature' as const,
         geometry: { type: 'Point' as const, coordinates: [fm.lon, fm.lat] },
-        properties: { idx, isNearest: 0 },
-      })),
-    }
-
-    // ピン留めマーカー（nearest + selected）: クラスタ対象外、常に表示
-    const pinnedFeatures = forestMarkers
-      .map((fm, idx) => ({ fm, idx }))
-      .filter(({ fm }) => fm.isNearest || fm.isSelected)
-
-    const pinnedData: GeoJSON.FeatureCollection = {
-      type: 'FeatureCollection',
-      features: pinnedFeatures.map(({ fm, idx }) => ({
-        type: 'Feature' as const,
-        geometry: { type: 'Point' as const, coordinates: [fm.lon, fm.lat] },
-        properties: { idx, isNearest: fm.isNearest ? 1 : 0 },
+        properties: {
+          idx,
+          isNearest: fm.isNearest ? 1 : 0,
+          isSelected: fm.isSelected ? 1 : 0,
+          // ピン留め（nearest/selected）は常に表示、それ以外はコリジョン検出で間引き
+          pinned: (fm.isNearest || fm.isSelected) ? 1 : 0,
+        },
       })),
     }
 
     if (map.getSource('forests')) {
       ;(map.getSource('forests') as maplibregl.GeoJSONSource).setData(sourceData)
-      ;(map.getSource('forests-pinned') as maplibregl.GeoJSONSource).setData(pinnedData)
       return
     }
 
@@ -402,94 +388,60 @@ export default function MapLibre3DViewer({
         mobileIconsLoadedRef.current = true
       }
 
-      // クラスタ対象ソース（通常マーカー）
       map.addSource('forests', {
         type: 'geojson',
         data: sourceData,
-        cluster: true,
-        clusterMaxZoom: 14,
-        clusterRadius: 50,
       })
 
-      // ピン留めソース（nearest + selected、クラスタ対象外）
-      map.addSource('forests-pinned', {
-        type: 'geojson',
-        data: pinnedData,
-      })
-
-      // クラスタ — 通常マーカーと同じ見た目
+      // 最寄りマーカー（常に表示、最前面）
       map.addLayer({
-        id: 'clusters',
+        id: 'forest-nearest',
         type: 'symbol',
         source: 'forests',
-        filter: ['has', 'point_count'],
-        layout: {
-          'icon-image': 'forest-normal',
-          'icon-size': 1,
-          'icon-allow-overlap': true,
-        },
-      })
-
-      // クラスタ内の個別マーカー
-      map.addLayer({
-        id: 'unclustered-normal',
-        type: 'symbol',
-        source: 'forests',
-        filter: ['!', ['has', 'point_count']],
-        layout: {
-          'icon-image': 'forest-normal',
-          'icon-size': 1,
-          'icon-allow-overlap': true,
-        },
-      })
-
-      // ピン留めマーカー（常に最前面に表示）
-      map.addLayer({
-        id: 'pinned-nearest',
-        type: 'symbol',
-        source: 'forests-pinned',
         filter: ['==', ['get', 'isNearest'], 1],
         layout: {
           'icon-image': 'forest-nearest',
           'icon-size': 1,
           'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+          'symbol-sort-key': 0,
         },
       })
 
+      // 選択中マーカー（常に表示）
       map.addLayer({
-        id: 'pinned-selected',
+        id: 'forest-selected',
         type: 'symbol',
-        source: 'forests-pinned',
-        filter: ['!=', ['get', 'isNearest'], 1],
+        source: 'forests',
+        filter: ['all', ['==', ['get', 'isSelected'], 1], ['!=', ['get', 'isNearest'], 1]],
         layout: {
           'icon-image': 'forest-normal',
           'icon-size': 1,
           'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+          'symbol-sort-key': 1,
         },
       })
 
-      // クラスタタップ → ランダムに1つ選択（カメラ移動はルート表示のflyToに任せる）
-      map.on('click', 'clusters', (e) => {
-        const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] })
-        if (!features.length) return
-        const clusterId = features[0].properties?.cluster_id
-        const source = map.getSource('forests') as maplibregl.GeoJSONSource
-
-        source.getClusterLeaves(clusterId, 100, 0).then((leaves) => {
-          if (leaves.length > 0) {
-            const randomLeaf = leaves[Math.floor(Math.random() * leaves.length)]
-            const idx = randomLeaf.properties?.idx
-            if (idx !== undefined) {
-              forestClickHandlerRef.current(idx)
-            }
-          }
-        })
+      // 通常マーカー（コリジョン検出で自動間引き、Google Maps的挙動）
+      map.addLayer({
+        id: 'forest-normal',
+        type: 'symbol',
+        source: 'forests',
+        filter: ['==', ['get', 'pinned'], 0],
+        layout: {
+          'icon-image': 'forest-normal',
+          'icon-size': 1,
+          'icon-allow-overlap': false,
+          'icon-padding': 2,
+          'symbol-sort-key': 2,
+        },
       })
 
-      // 個別マーカークリック → 森林選択
-      const handleUnclusteredClick = (e: maplibregl.MapMouseEvent) => {
+      // マーカークリック → 森林選択
+      const handleClick = (e: maplibregl.MapMouseEvent) => {
         const features = map.queryRenderedFeatures(e.point, {
-          layers: ['unclustered-normal', 'pinned-nearest', 'pinned-selected'],
+          layers: ['forest-nearest', 'forest-selected', 'forest-normal'],
         })
         if (!features.length) return
         const idx = features[0].properties?.idx
@@ -497,9 +449,9 @@ export default function MapLibre3DViewer({
           forestClickHandlerRef.current(idx)
         }
       }
-      map.on('click', 'unclustered-normal', handleUnclusteredClick)
-      map.on('click', 'pinned-nearest', handleUnclusteredClick)
-      map.on('click', 'pinned-selected', handleUnclusteredClick)
+      map.on('click', 'forest-nearest', handleClick)
+      map.on('click', 'forest-selected', handleClick)
+      map.on('click', 'forest-normal', handleClick)
     }
 
     setupLayers()
