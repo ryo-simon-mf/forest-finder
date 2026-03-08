@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic'
 import type { Position } from '@/types/geolocation'
 import type { ForestArea } from '@/types/forest'
+import type { POIType } from '@/types/poi'
 import type { DisplayMode } from '@/lib/distance'
 
 const Map = dynamic(() => import('./Map').then((mod) => mod.Map), {
@@ -26,12 +27,13 @@ interface MapWrapperProps {
   route?: [number, number][]
   isRouteLoading?: boolean
   onForestSelect?: (forest: ForestArea) => void
+  poiType?: POIType
 }
 
-export function MapWrapper({ position, forests = [], heading, displayMode = 'distance', onBoundsChange, route, isRouteLoading, onForestSelect }: MapWrapperProps) {
+export function MapWrapper({ position, forests = [], heading, displayMode = 'distance', onBoundsChange, route, isRouteLoading, onForestSelect, poiType }: MapWrapperProps) {
   return (
     <div className="h-full w-full relative">
-      <Map position={position} forests={forests} heading={heading} displayMode={displayMode} onBoundsChange={onBoundsChange} route={route} onForestSelect={onForestSelect} />
+      <Map position={position} forests={forests} heading={heading} displayMode={displayMode} onBoundsChange={onBoundsChange} route={route} onForestSelect={onForestSelect} poiType={poiType} />
       {isRouteLoading && (
         <div className="absolute top-3 right-3 z-[1000] bg-white/90 rounded-full p-2 shadow">
           <div className="animate-spin h-5 w-5 border-2 border-forest border-t-transparent rounded-full" />

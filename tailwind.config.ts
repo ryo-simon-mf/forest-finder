@@ -15,6 +15,14 @@ const config: Config = {
           DEFAULT: "rgba(27, 172, 83, 1)",
           dark: "rgba(20, 140, 67, 1)",
         },
+        konbini: {
+          DEFAULT: "rgba(59, 130, 246, 1)",
+          dark: "rgba(37, 99, 235, 1)",
+        },
+        station: {
+          DEFAULT: "rgba(239, 68, 68, 1)",
+          dark: "rgba(220, 38, 38, 1)",
+        },
       },
       keyframes: {
         'loading-progress': {

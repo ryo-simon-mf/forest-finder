@@ -44,3 +44,11 @@ next-env.d.ts
 # バックアップデータ
 /src/data/japan-forests.json
 /src/data/kokudo-forests.json
+
+# Cesium assets (copied during build)
+/public/cesium/
+
+# PLATEAU 3D (開発中・未デプロイ)
+/src/app/3d/
+/src/components/CesiumViewer.tsx
+/src/services/plateauService.ts
