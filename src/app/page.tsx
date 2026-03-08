@@ -75,10 +75,10 @@ export default function Home() {
     setSelectedForest(forest)
   }, [])
 
-  // 半径を量子化（2のべき乗に丸め）して微小変化による再検索を防止
+  // 半径を量子化し、縮小しない（ズームインで森が消えるのを防止）
   const handleBoundsChange = useCallback((r: number) => {
     const quantized = Math.pow(2, Math.round(Math.log2(r)))
-    setMapRadius(quantized)
+    setMapRadius((prev) => Math.max(prev, quantized))
   }, [])
 
   const watchIdRef = useRef<number | null>(null)
