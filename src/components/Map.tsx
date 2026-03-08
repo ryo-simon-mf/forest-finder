@@ -220,6 +220,7 @@ interface MapProps {
   heading?: number | null
   displayMode?: string
   onBoundsChange?: (radiusMeters: number) => void
+  onMapCenterChange?: (lat: number, lng: number) => void
   route?: [number, number][]
   onForestSelect?: (forest: ForestArea) => void
   poiType?: POIType
@@ -271,7 +272,7 @@ function MapRefCapture({ mapRef }: { mapRef: React.MutableRefObject<L.Map | null
   return null
 }
 
-function BoundsWatcher({ onBoundsChange }: { onBoundsChange: (radiusMeters: number) => void }) {
+function BoundsWatcher({ onBoundsChange, onMapCenterChange }: { onBoundsChange: (radiusMeters: number) => void; onMapCenterChange?: (lat: number, lng: number) => void }) {
   const map = useMap()
 
   useEffect(() => {
@@ -285,14 +286,22 @@ function BoundsWatcher({ onBoundsChange }: { onBoundsChange: (radiusMeters: numb
     // 初回のみ即時発火
     onBoundsChange(calcRadius())
 
-    // ズームレベル変更時のみ発火
-    const handler = () => onBoundsChange(calcRadius())
-    map.on('zoomend', handler)
+    // ズームレベル変更時
+    const zoomHandler = () => onBoundsChange(calcRadius())
+    map.on('zoomend', zoomHandler)
+
+    // パン終了時に地図中心を通知
+    const moveHandler = () => {
+      const center = map.getCenter()
+      onMapCenterChange?.(center.lat, center.lng)
+    }
+    map.on('moveend', moveHandler)
 
     return () => {
-      map.off('zoomend', handler)
+      map.off('zoomend', zoomHandler)
+      map.off('moveend', moveHandler)
     }
-  }, [map, onBoundsChange])
+  }, [map, onBoundsChange, onMapCenterChange])
 
   return null
 }
@@ -350,7 +359,7 @@ function AnimatedPolyline({ route, poiType = 'forest' }: { route: [number, numbe
   )
 }
 
-export function Map({ position, forests = [], heading, onBoundsChange, route, onForestSelect, poiType = 'forest' }: MapProps) {
+export function Map({ position, forests = [], heading, onBoundsChange, onMapCenterChange, route, onForestSelect, poiType = 'forest' }: MapProps) {
   const [mapStyle] = useState<MapStyleKey>('light')
   const mapRef = useRef<L.Map | null>(null)
   const nearestForestId = forests.length > 0 ? forests[0].id : null
@@ -411,7 +420,7 @@ export function Map({ position, forests = [], heading, onBoundsChange, route, on
 
         <MapUpdater position={position} route={route} />
         <MapRefCapture mapRef={mapRef} />
-        {onBoundsChange && <BoundsWatcher onBoundsChange={onBoundsChange} />}
+        {onBoundsChange && <BoundsWatcher onBoundsChange={onBoundsChange} onMapCenterChange={onMapCenterChange} />}
       </MapContainer>
 
       {/* 現在地に戻るボタン — fixed配置で下部カードより上に表示 */}

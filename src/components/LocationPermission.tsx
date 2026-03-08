@@ -25,7 +25,7 @@ export function LocationPermission({
           <img src={iconImg.src} alt="" className="h-32 w-auto mx-auto" />
         </div>
 
-        <h1 className="text-3xl font-bold mb-6">かかりつけの森</h1>
+        <h1 className="text-3xl font-bold mb-6">最寄りの森</h1>
 
         <p className="text-white/90 text-base leading-relaxed mb-10">
           森はストレスの特効薬です。

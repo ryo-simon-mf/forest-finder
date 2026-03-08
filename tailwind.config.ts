@@ -29,6 +29,11 @@ const config: Config = {
           '0%': { width: '0%' },
           '100%': { width: '100%' },
         },
+        'blink': {
+          '0%, 20%': { opacity: '0' },
+          '50%': { opacity: '1' },
+          '100%': { opacity: '0' },
+        },
       },
       animation: {
         'loading-progress': 'loading-progress 5s ease-out forwards',

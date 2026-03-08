@@ -11,14 +11,31 @@ import { MapWrapper } from '@/components/MapWrapper'
 import { formatDistance, getEstimatedArrivalTime } from '@/lib/distance'
 import type { ForestArea } from '@/types/forest'
 import iconImg from '@/img/icon.png'
+import { ForestTipBubble } from '@/components/ForestTipBubble'
 import {
   searchForestsLocal,
   preloadForestData,
   isForestDataLoaded,
 } from '@/services/localForestService'
 
+function LoadingDots() {
+  return (
+    <span className="inline-flex gap-[2px]">
+      <span className="animate-[blink_1.4s_0s_infinite]">.</span>
+      <span className="animate-[blink_1.4s_0.2s_infinite]">.</span>
+      <span className="animate-[blink_1.4s_0.4s_infinite]">.</span>
+    </span>
+  )
+}
+
 const MIN_RADIUS = 5000
 const MIN_LOADING_MS = 5000
+
+function formatAddress(address: string | undefined): string | undefined {
+  if (!address) return undefined
+  // 「都/道/府/県」+「市/区/郡/町/村」の後に改行を1回だけ入れる
+  return address.replace(/(.*?(?:都|道|府|県).*?(?:市|区|郡|町|村))/, '$1\n')
+}
 
 export default function Home() {
   const [started, setStarted] = useState(false)
@@ -62,7 +79,7 @@ export default function Home() {
     []
   )
 
-  const { result: forestResult, isLoading: isSearching } = useForestSearch(
+  const { result: forestResult, isLoading: isSearching, searchAt } = useForestSearch(
     dataLoaded ? position : null,
     { searchFn, radiusMeters }
   )
@@ -80,6 +97,11 @@ export default function Home() {
     const quantized = Math.pow(2, Math.round(Math.log2(r)))
     setMapRadius((prev) => Math.max(prev, quantized))
   }, [])
+
+  // 地図パン時に追加検索
+  const handleMapCenterChange = useCallback((lat: number, lng: number) => {
+    searchAt(lat, lng)
+  }, [searchAt])
 
   const watchIdRef = useRef<number | null>(null)
 
@@ -126,12 +148,14 @@ export default function Home() {
     <main className="h-[100dvh] flex flex-col bg-forest text-white">
       {/* 地図エリア */}
       <div className="flex-1 relative">
+        <ForestTipBubble />
         {position && (
           <MapWrapper
             position={position}
             forests={forestResult?.forests || []}
             heading={heading}
             onBoundsChange={handleBoundsChange}
+            onMapCenterChange={handleMapCenterChange}
             route={route ?? undefined}
             isRouteLoading={isRouteLoading}
             onForestSelect={handleForestSelect}
@@ -141,20 +165,20 @@ export default function Home() {
         {/* 最寄り森林カード */}
         {displayForest && (
           <div className="fixed bottom-0 left-0 right-0 z-[1000] px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-            <div className="bg-forest rounded-2xl px-6 py-5 shadow-lg">
-              <div className="flex items-center">
-                <div className="flex-1 basis-0 min-w-0 text-center">
-                  <img src={iconImg.src} alt="" className="h-16 w-auto mb-2 mx-auto" />
-                  <p className="text-white font-bold text-lg leading-snug">
-                    {displayForest.address || '住所を取得中...'}
+            <div className="bg-forest rounded-2xl px-6 py-5 shadow-lg h-[140px] overflow-hidden">
+              <div className="flex items-center h-full">
+                <div className="flex-1 basis-0 min-w-0 text-center flex flex-col items-center justify-center">
+                  <img src={iconImg.src} alt="" className="h-12 w-auto mb-1 mx-auto" />
+                  <p className="text-white font-bold text-base leading-snug whitespace-pre-line">
+                    {formatAddress(displayForest.address) || <>住所取得中<LoadingDots /></>}
                   </p>
                 </div>
-                <div className="border-l border-white/40 pl-5 ml-5 flex-1 basis-0 text-center">
-                  <p className="text-white text-base font-bold">現在地から</p>
-                  <p className="text-white font-extrabold text-6xl leading-none my-1">
+                <div className="border-l border-white/40 pl-5 ml-5 flex-1 basis-0 text-center flex flex-col justify-center">
+                  <p className="text-white text-sm font-bold">現在地から</p>
+                  <p className="text-white font-extrabold text-5xl leading-none my-1">
                     {isSearching ? '...' : distanceText}
                   </p>
-                  <p className="text-white text-base font-bold">{subText}</p>
+                  <p className="text-white text-sm font-bold">{subText}</p>
                 </div>
               </div>
             </div>
