@@ -20,16 +20,15 @@ import {
 const MapLibre3DViewer = dynamic(() => import('@/components/MapLibre3DViewer'), {
   ssr: false,
   loading: () => (
-    <div className="h-full w-full bg-gray-900 flex items-center justify-center">
+    <div className="h-full w-full bg-forest flex items-center justify-center">
       <div className="text-center">
         <div className="animate-spin rounded-full h-10 w-10 border-4 border-white border-t-transparent mb-3 mx-auto" />
-        <p className="text-white/80">3Dビューを準備中...</p>
+        <p className="text-white/80">マップを準備中...</p>
       </div>
     </div>
   ),
 })
 
-// (#6) 住所ローディングアニメーション
 function LoadingDots() {
   return (
     <span className="inline-flex gap-[2px]">
@@ -40,7 +39,6 @@ function LoadingDots() {
   )
 }
 
-// (#5) 住所フォーマット
 function formatAddress(address: string | undefined): string | undefined {
   if (!address) return undefined
   return address.replace(/(.*?(?:都|道|府|県).*?(?:市|区|郡|町|村))/, '$1\n')
@@ -49,11 +47,11 @@ function formatAddress(address: string | undefined): string | undefined {
 const MIN_RADIUS = 5000
 const MIN_LOADING_MS = 5000
 
-export default function Map3DPage() {
-  // (#9) ランディング/ローディング画面
+export default function Map3D2DPage() {
   const [started, setStarted] = useState(false)
   const [dataLoaded, setDataLoaded] = useState(isForestDataLoaded())
   const [minTimeElapsed, setMinTimeElapsed] = useState(false)
+  const [animateReady, setAnimateReady] = useState(false)
 
   const {
     status,
@@ -64,13 +62,11 @@ export default function Map3DPage() {
     stopWatching,
   } = useGeolocation()
 
-  // (#10) デバイス方向取得
   const {
     heading,
     requestPermission: requestOrientationPermission,
   } = useDeviceOrientation()
 
-  // (#9) 「検索する」タップ時: 位置情報許可 + データ読み込み + 最低表示タイマーを同時開始
   const handleStart = useCallback(() => {
     setStarted(true)
     requestPermission()
@@ -82,8 +78,22 @@ export default function Map3DPage() {
   }, [requestPermission, requestOrientationPermission, dataLoaded])
 
   const isReady = started && status === 'granted' && dataLoaded && minTimeElapsed
+  // positionが取れたらマップ描画開始（ローディング画面の裏で）
+  const canRenderMap = started && position
 
-  // (#8) 半径ラチェット
+  // isReady後にフェードアウト → アニメーション発火
+  const [overlayVisible, setOverlayVisible] = useState(true)
+  useEffect(() => {
+    if (isReady && overlayVisible) {
+      // フェードアウト開始 → 完了後にアニメーション発火
+      const timer = setTimeout(() => {
+        setOverlayVisible(false)
+        setAnimateReady(true)
+      }, 600)
+      return () => clearTimeout(timer)
+    }
+  }, [isReady, overlayVisible])
+
   const [mapRadius, setMapRadius] = useState(MIN_RADIUS)
   const radiusMeters = Math.max(MIN_RADIUS, mapRadius)
 
@@ -98,7 +108,6 @@ export default function Map3DPage() {
     { searchFn, radiusMeters }
   )
 
-  // Selected forest & route
   const [selectedForestId, setSelectedForestId] = useState<string | null>(null)
   const selectedForest = selectedForestId
     ? forestResult?.forests.find((f) => f.id === selectedForestId) ?? null
@@ -106,7 +115,6 @@ export default function Map3DPage() {
   const routeTarget = selectedForest ?? forestResult?.nearest ?? null
   const { route, isLoading: isRouteLoading } = useRoute(position, routeTarget)
 
-  // Forest markers
   const forestMarkers = (forestResult?.forests || []).map((f) => ({
     lat: f.center.latitude,
     lon: f.center.longitude,
@@ -124,18 +132,15 @@ export default function Map3DPage() {
     [forestResult, resolveAddress]
   )
 
-  // (#8) 半径を量子化し、縮小しない（ズームインで森が消えるのを防止）
   const handleBoundsChange = useCallback((r: number) => {
     const quantized = Math.pow(2, Math.round(Math.log2(r)))
     setMapRadius((prev) => Math.max(prev, quantized))
   }, [])
 
-  // (#7) 地図パン時に追加検索
   const handleMapCenterChange = useCallback((lat: number, lng: number) => {
     searchAt(lat, lng)
   }, [searchAt])
 
-  // GPS watching
   const watchIdRef = useRef<number | null>(null)
   useEffect(() => {
     if (status === 'granted' && !watchIdRef.current) {
@@ -149,7 +154,7 @@ export default function Map3DPage() {
     }
   }, [status, startWatching, stopWatching])
 
-  // (#9) まだ開始していない or 拒否/エラー → ランディング画面
+  // ランディング画面
   if (!started || status === 'denied' || status === 'unavailable' || status === 'error') {
     return (
       <LocationPermission
@@ -158,11 +163,6 @@ export default function Map3DPage() {
         onRequestPermission={handleStart}
       />
     )
-  }
-
-  // (#9) 開始済みだがまだ準備完了していない → ローディング画面
-  if (!isReady) {
-    return <LoadingScreen />
   }
 
   const displayForest = routeTarget
@@ -174,47 +174,61 @@ export default function Map3DPage() {
     ? `${formatDistance(displayForest.distance)}・${getEstimatedArrivalTime(displayForest.distance).replace('に到着', '')}`
     : ''
 
-  const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
+  // const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
 
   return (
     <main className="h-[100dvh] flex flex-col bg-forest text-white">
-      {/* 地図エリア */}
       <div className="flex-1 relative">
-        {/* (#2) ForestTipBubble */}
-        <ForestTipBubble />
-
-        {/* Header overlay */}
-        <div className="absolute top-3 left-3 z-[1000]">
-          <a
-            href={`${basePath}/`}
-            className="bg-white/90 hover:bg-white text-forest-dark text-sm font-medium px-3 py-1.5 rounded-lg shadow"
-          >
-            &#x2190; 通常マップ
-          </a>
-        </div>
-
-        {/* ルートローディング */}
-        {isRouteLoading && (
-          <div className="absolute top-3 right-3 z-[1000] bg-white/90 rounded-full p-2 shadow">
-            <div className="animate-spin h-5 w-5 border-2 border-forest border-t-transparent rounded-full" />
-          </div>
-        )}
-
-        {position && (
+        {/* マップ（positionが取れたらローディング中でも裏で描画） */}
+        {canRenderMap && (
           <MapLibre3DViewer
             latitude={position.latitude}
             longitude={position.longitude}
             forestMarkers={forestMarkers}
             route={route ?? undefined}
             heading={heading}
+            topDown
+            animateReady={animateReady}
             onForestClick={handleForestClick}
             onBoundsChange={handleBoundsChange}
             onMapCenterChange={handleMapCenterChange}
           />
         )}
 
+        {/* ローディングオーバーレイ（マップの上に重ねて表示） */}
+        {!animateReady && (
+          <div
+            className="absolute inset-0 z-[2000] transition-opacity duration-500"
+            style={{ opacity: isReady ? 0 : 1 }}
+          >
+            <LoadingScreen />
+          </div>
+        )}
+
+        {/* 以下はマップ準備完了後のみ表示 */}
+        {animateReady && (
+          <>
+            <ForestTipBubble />
+
+            {/* <div className="absolute top-3 left-3 z-[1000]">
+              <a
+                href={`${basePath}/`}
+                className="bg-white/90 hover:bg-white text-forest-dark text-sm font-medium px-3 py-1.5 rounded-lg shadow"
+              >
+                &#x2190; 通常マップ
+              </a>
+            </div> */}
+
+            {isRouteLoading && (
+              <div className="absolute top-3 right-3 z-[1000] bg-white/90 rounded-full p-2 shadow">
+                <div className="animate-spin h-5 w-5 border-2 border-forest border-t-transparent rounded-full" />
+              </div>
+            )}
+          </>
+        )}
+
         {/* 最寄り森林カード */}
-        {displayForest && (
+        {animateReady && displayForest && (
           <div className="fixed bottom-0 left-0 right-0 z-[1000] px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
             <div className="bg-forest rounded-2xl px-6 py-5 shadow-lg h-[140px] overflow-hidden">
               <div className="flex items-center h-full">

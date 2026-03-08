@@ -57,7 +57,7 @@ export function ForestTipBubble() {
         }}
       >
         <p className="text-gray-700 text-sm leading-relaxed text-center">
-          🌲 {shuffled[tipIndex]}
+          {shuffled[tipIndex]}
         </p>
         {/* 吹き出しの三角（右上向き） */}
         <div className="absolute -top-[10px] right-6 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[10px] border-b-forest/80" />

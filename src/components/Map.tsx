@@ -232,7 +232,7 @@ function MapUpdater({ position, route }: { position: Position; route?: [number, 
   const initialRef = useRef(true)
 
   useEffect(() => {
-    const fitRoute = (r: [number, number][]) => {
+    const fitRoute = (r: [number, number][], smooth = false) => {
       const bounds = L.latLngBounds(r)
       const mapSize = map.getSize()
       const topPad = Math.round(mapSize.y * 0.08)
@@ -242,6 +242,8 @@ function MapUpdater({ position, route }: { position: Position; route?: [number, 
         paddingTopLeft: [sidePad, topPad],
         paddingBottomRight: [sidePad, bottomPad],
         maxZoom: 19,
+        animate: smooth,
+        duration: smooth ? 0.8 : 0.25,
       })
     }
 
@@ -260,7 +262,7 @@ function MapUpdater({ position, route }: { position: Position; route?: [number, 
     if (route && route.length > 0) {
       const key = `${route[0][0]},${route[0][1]}-${route[route.length - 1][0]},${route[route.length - 1][1]}`
       if (fittedRouteRef.current !== key) {
-        fitRoute(route)
+        fitRoute(route, true)
         fittedRouteRef.current = key
       }
     }

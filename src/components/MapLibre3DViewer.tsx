@@ -16,24 +16,38 @@ interface MapLibre3DViewerProps {
   longitude: number
   forestMarkers?: ForestMarker[]
   route?: [number, number][]
+  heading?: number | null
+  topDown?: boolean
+  animateReady?: boolean
   onForestClick?: (index: number) => void
+  onBoundsChange?: (radiusMeters: number) => void
+  onMapCenterChange?: (lat: number, lng: number) => void
 }
 
 // 無料のベクタータイル（3D建物データ含む）- positron は CARTO light に近いトーン
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron'
+
+const ANIM_DURATION = 1500
 
 export default function MapLibre3DViewer({
   latitude,
   longitude,
   forestMarkers = [],
   route,
+  heading,
+  topDown = false,
+  animateReady,
   onForestClick,
+  onBoundsChange,
+  onMapCenterChange,
 }: MapLibre3DViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const markersRef = useRef<maplibregl.Marker[]>([])
   const locationMarkerRef = useRef<maplibregl.Marker | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
+  const animTargetRef = useRef<{ center: maplibregl.LngLat; zoom: number; bearing: number; pitch: number } | null>(null)
+  const animFiredRef = useRef(false)
 
   // 地図初期化
   useEffect(() => {
@@ -60,36 +74,56 @@ export default function MapLibre3DViewer({
         )
       : null
 
+    const usePitch = topDown ? 0 : 55
+
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: MAP_STYLE,
       center: [longitude, latitude],
       zoom: 15,
-      pitch: 55,
+      pitch: usePitch,
       bearing: initBearing,
+      maxPitch: topDown ? 0 : 85,
+      dragRotate: true,
+      touchPitch: !topDown,
     })
 
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
 
     map.on('load', () => {
       // 現在地(下)と最寄り森林(上)が画面に収まるようにフィット
+      const fitPadding = topDown
+        ? { top: 160, bottom: 260, left: 60, right: 60 }
+        : { top: 120, bottom: 260, left: 60, right: 60 }
       if (bounds) {
-        // pitch 0 でfitBoundsのズームを正確に計算させてから、pitchを付ける
+        // fitBoundsで目標ズーム・中心を計算（即座に）
         map.fitBounds(bounds, {
-          padding: { top: 100, bottom: 220, left: 60, right: 60 },
+          padding: fitPadding,
           pitch: 0,
           bearing: initBearing,
           maxZoom: 19,
           duration: 0,
         })
-        // 計算されたズームを少し引いてpitch分の余裕を確保
-        const calculatedZoom = map.getZoom() - 0.5
-        map.easeTo({
-          zoom: calculatedZoom,
-          pitch: 55,
-          bearing: initBearing,
-          duration: 1000,
-        })
+        const targetZoom = map.getZoom() - (topDown ? 0 : 0.5)
+        const targetCenter = map.getCenter()
+        const targetPitch = topDown ? 0 : 55
+
+        if (animateReady !== undefined) {
+          // deferred animation mode: 開始位置に配置、animateReadyでflyTo
+          map.jumpTo({ center: [longitude, latitude], zoom: 13, pitch: 0, bearing: initBearing })
+          animTargetRef.current = { center: targetCenter, zoom: targetZoom, bearing: initBearing, pitch: targetPitch }
+        } else {
+          // 即時アニメーション
+          map.jumpTo({ center: [longitude, latitude], zoom: 13, pitch: 0 })
+          map.flyTo({
+            center: targetCenter,
+            zoom: targetZoom,
+            pitch: targetPitch,
+            bearing: initBearing,
+            duration: 2000,
+            curve: 1.2,
+          })
+        }
       }
 
       const layers = map.getStyle().layers
@@ -97,14 +131,12 @@ export default function MapLibre3DViewer({
 
       if (layers) {
         for (const layer of layers) {
-          // POIアイコン（店舗・駅・施設など）を非表示にする
           if (layer.type === 'symbol') {
             const sourceLayer = (layer as Record<string, unknown>)['source-layer'] as string | undefined
             if (sourceLayer === 'poi' || layer.id.includes('poi')) {
               map.setLayoutProperty(layer.id, 'visibility', 'none')
               continue
             }
-            // 最初のテキストラベルレイヤーを記録（建物挿入位置）
             if (!labelLayerId && (layer.layout as Record<string, unknown>)?.['text-field']) {
               labelLayerId = layer.id
             }
@@ -112,13 +144,13 @@ export default function MapLibre3DViewer({
         }
       }
 
-      // 3D建物レイヤー追加
+      // 3D建物レイヤー追加（topDownモードではスキップ）
       const sources = map.getStyle().sources
       const buildingSource = Object.keys(sources).find(
         (s) => s === 'openmaptiles' || s === 'openfreemap'
       )
 
-      if (buildingSource) {
+      if (buildingSource && !topDown) {
         map.addLayer(
           {
             id: '3d-buildings',
@@ -140,6 +172,17 @@ export default function MapLibre3DViewer({
       setMapLoaded(true)
     })
 
+    // (#7) BoundsWatcher: moveend で半径通知 + パン検索
+    map.on('moveend', () => {
+      const center = map.getCenter()
+      const mapBounds = map.getBounds()
+      const ne = mapBounds.getNorthEast()
+      const centerLatLng = new maplibregl.LngLat(center.lng, center.lat)
+      const neLatLng = new maplibregl.LngLat(ne.lng, ne.lat)
+      const radiusMeters = centerLatLng.distanceTo(neLatLng)
+      onBoundsChange?.(radiusMeters)
+      onMapCenterChange?.(center.lat, center.lng)
+    })
 
     mapRef.current = map
 
@@ -151,29 +194,96 @@ export default function MapLibre3DViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // 現在地マーカー（2D版と同じ青い丸）
+  // deferred animation: animateReadyがtrueになったらflyTo発動
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapLoaded || !animateReady || animFiredRef.current) return
+    const target = animTargetRef.current
+    if (!target) return
+    animFiredRef.current = true
+    map.flyTo({
+      center: target.center,
+      zoom: target.zoom,
+      pitch: target.pitch,
+      bearing: target.bearing,
+      duration: 2000,
+      curve: 1.2,
+    })
+  }, [animateReady, mapLoaded])
+
+  // (#1) 現在地マーカー（方向付き）
   useEffect(() => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
 
     if (locationMarkerRef.current) {
+      // 既存マーカーの位置更新 + heading更新
       locationMarkerRef.current.setLngLat([longitude, latitude])
+      const el = locationMarkerRef.current.getElement()
+      const arrow = el.querySelector('.direction-arrow') as HTMLElement | null
+      if (arrow) {
+        if (heading !== null && heading !== undefined) {
+          arrow.style.display = 'block'
+          arrow.style.transform = `rotate(${heading}deg)`
+        } else {
+          arrow.style.display = 'none'
+        }
+      }
       return
     }
 
     const el = document.createElement('div')
     el.style.cssText = `
-      width: 20px; height: 20px;
+      position: relative;
+      width: 80px; height: 80px;
+    `
+
+    // 方向矢印SVG
+    const arrowDiv = document.createElement('div')
+    arrowDiv.className = 'direction-arrow'
+    arrowDiv.style.cssText = `
+      position: absolute;
+      top: 0; left: 0;
+      width: 80px; height: 80px;
+      display: ${heading !== null && heading !== undefined ? 'block' : 'none'};
+      transform: rotate(${heading ?? 0}deg);
+      transform-origin: center center;
+    `
+    arrowDiv.innerHTML = `
+      <svg width="80" height="80" viewBox="0 0 80 80">
+        <path
+          d="M 40 40 L 40 5 A 35 35 0 0 1 70.3 22 Z"
+          fill="rgba(59, 130, 246, 0.5)"
+          stroke="rgba(59, 130, 246, 0.8)"
+          stroke-width="1"
+        />
+        <line
+          x1="40" y1="40" x2="40" y2="8"
+          stroke="rgba(59, 130, 246, 0.9)"
+          stroke-width="2"
+        />
+      </svg>
+    `
+    el.appendChild(arrowDiv)
+
+    // 青い丸
+    const dot = document.createElement('div')
+    dot.style.cssText = `
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 18px; height: 18px;
       background: #3b82f6;
       border: 3px solid white;
       border-radius: 50%;
       box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.25), 0 2px 8px rgba(0,0,0,0.3);
     `
+    el.appendChild(dot)
 
-    locationMarkerRef.current = new maplibregl.Marker({ element: el })
+    locationMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'center' })
       .setLngLat([longitude, latitude])
       .addTo(map)
-  }, [latitude, longitude, mapLoaded])
+  }, [latitude, longitude, mapLoaded, heading])
 
   // 森林マーカー
   const handleForestClick = useCallback(
@@ -187,7 +297,6 @@ export default function MapLibre3DViewer({
     const map = mapRef.current
     if (!map || !mapLoaded) return
 
-    // 既存マーカーを削除
     markersRef.current.forEach((m) => m.remove())
     markersRef.current = []
 
@@ -222,57 +331,147 @@ export default function MapLibre3DViewer({
     })
   }, [forestMarkers, handleForestClick, mapLoaded])
 
-  // ルート表示
+  // (#3) ルート表示（アニメーション付き）+ カメラ移動
+  const fittedRouteRef = useRef<string | null>(null)
+  const initialRouteRef = useRef(true)
+
   useEffect(() => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
 
-    const addRoute = () => {
-      // 既存ルートを削除
-      if (map.getLayer('route-line')) map.removeLayer('route-line')
-      if (map.getLayer('route-outline')) map.removeLayer('route-outline')
-      if (map.getSource('route')) map.removeSource('route')
+    // 既存ルートを削除
+    if (map.getLayer('route-line')) map.removeLayer('route-line')
+    if (map.getSource('route')) map.removeSource('route')
 
-      if (!route || route.length < 2) return
+    if (!route || route.length < 2) return
 
-      const coordinates = route.map(([lat, lng]) => [lng, lat])
+    const fullCoordinates = route.map(([lat, lng]) => [lng, lat])
+    const routeKey = `${route[0][0]},${route[0][1]}-${route[route.length - 1][0]},${route[route.length - 1][1]}`
 
-      map.addSource('route', {
-        type: 'geojson',
-        data: {
+    // カメラ移動: ルートが変わった時にfitBounds（初回はスキップ＝初期化時に済んでいる）
+    if (initialRouteRef.current) {
+      initialRouteRef.current = false
+      fittedRouteRef.current = routeKey
+    } else if (fittedRouteRef.current !== routeKey) {
+      fittedRouteRef.current = routeKey
+      // 現在地→目的地の方角を計算
+      const startLat = route[0][0] * Math.PI / 180
+      const endLat = route[route.length - 1][0] * Math.PI / 180
+      const dLon = (route[route.length - 1][1] - route[0][1]) * Math.PI / 180
+      const y = Math.sin(dLon) * Math.cos(endLat)
+      const x = Math.cos(startLat) * Math.sin(endLat) - Math.sin(startLat) * Math.cos(endLat) * Math.cos(dLon)
+      const bearing = Math.atan2(y, x) * 180 / Math.PI
+
+      const bounds = new maplibregl.LngLatBounds(
+        [Math.min(fullCoordinates[0][0], fullCoordinates[fullCoordinates.length - 1][0]),
+         Math.min(fullCoordinates[0][1], fullCoordinates[fullCoordinates.length - 1][1])],
+        [Math.max(fullCoordinates[0][0], fullCoordinates[fullCoordinates.length - 1][0]),
+         Math.max(fullCoordinates[0][1], fullCoordinates[fullCoordinates.length - 1][1])]
+      )
+      const routePadding = topDown
+        ? { top: 160, bottom: 260, left: 60, right: 60 }
+        : { top: 120, bottom: 260, left: 60, right: 60 }
+      map.fitBounds(bounds, {
+        padding: routePadding,
+        bearing,
+        pitch: topDown ? 0 : 55,
+        maxZoom: 19,
+        duration: 1000,
+      })
+    }
+
+    // 最初は空のLineStringで追加
+    map.addSource('route', {
+      type: 'geojson',
+      data: {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: fullCoordinates.slice(0, 2),
+        },
+      },
+    })
+
+    map.addLayer({
+      id: 'route-line',
+      type: 'line',
+      source: 'route',
+      layout: {
+        'line-join': 'miter',
+        'line-cap': 'square',
+      },
+      paint: {
+        'line-color': 'rgba(27, 172, 83, 1)',
+        'line-width': 6,
+        'line-opacity': 0.8,
+        'line-dasharray': [1.33, 2],
+      },
+    })
+
+    // アニメーション: 1.5秒かけてease-out-cubicで経路を伸ばす
+    const totalPoints = fullCoordinates.length
+    const startTime = performance.now()
+    let rafId: number
+
+    const animate = (now: number) => {
+      const elapsed = now - startTime
+      const progress = Math.min(elapsed / ANIM_DURATION, 1)
+      const eased = 1 - Math.pow(1 - progress, 3)
+      const count = Math.max(2, Math.ceil(totalPoints * eased))
+
+      const source = map.getSource('route') as maplibregl.GeoJSONSource | undefined
+      if (source) {
+        source.setData({
           type: 'Feature',
           properties: {},
           geometry: {
             type: 'LineString',
-            coordinates,
+            coordinates: fullCoordinates.slice(0, count),
           },
-        },
-      })
+        })
+      }
 
-      // メインライン（2D版と同じダッシュスタイル、太さ2倍）
-      map.addLayer({
-        id: 'route-line',
-        type: 'line',
-        source: 'route',
-        layout: {
-          'line-join': 'miter',
-          'line-cap': 'square',
-        },
-        paint: {
-          'line-color': 'rgba(27, 172, 83, 1)',
-          'line-width': 8,
-          'line-opacity': 0.8,
-          'line-dasharray': [1, 1.5],
-        },
-      })
+      if (progress < 1) {
+        rafId = requestAnimationFrame(animate)
+      }
     }
+    rafId = requestAnimationFrame(animate)
 
-    addRoute()
+    return () => {
+      cancelAnimationFrame(rafId)
+    }
   }, [route, mapLoaded])
+
+  // (#4) 現在地に戻る
+  const handleRecenter = useCallback(() => {
+    const map = mapRef.current
+    if (!map) return
+    map.easeTo({
+      center: [longitude, latitude],
+      zoom: 15,
+      pitch: topDown ? 0 : 55,
+      duration: 800,
+    })
+  }, [latitude, longitude, topDown])
 
   return (
     <div className="h-full w-full relative">
       <div ref={containerRef} className="h-full w-full" />
+
+      {/* (#4) 現在地に戻るボタン */}
+      <button
+        onClick={handleRecenter}
+        className="fixed z-[1001] right-4 bottom-[calc(12rem+env(safe-area-inset-bottom))] bg-[#1bac53] rounded-full w-11 h-11 shadow-lg flex items-center justify-center hover:bg-[#159a48] active:bg-[#128a3f] transition-colors"
+        aria-label="現在地に戻る"
+        title="現在地に戻る"
+      >
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" style={{transform: 'rotate(60deg)'}}>
+          <path d="M12 2 L16 14 L12 11 L8 14 Z" fill="white" />
+          <path d="M12 22 L8 10 L12 13 L16 10 Z" fill="rgba(255,255,255,0.4)" />
+        </svg>
+      </button>
+
       {/* MapLibreコントロールのテーマカラー上書き */}
       <style>{`
         .maplibregl-ctrl-group button {
