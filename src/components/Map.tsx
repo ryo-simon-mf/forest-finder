@@ -434,13 +434,12 @@ export function Map({ position, forests = [], heading, onBoundsChange, onMapCent
       {/* 現在地に戻るボタン — fixed配置で下部カードより上に表示 */}
       <button
         onClick={() => mapRef.current?.setView([position.latitude, position.longitude], 15, { animate: true })}
-        className="fixed z-[1001] right-4 bottom-[calc(12rem+env(safe-area-inset-bottom))] bg-[#1bac53] rounded-full w-11 h-11 shadow-lg flex items-center justify-center hover:bg-[#159a48] active:bg-[#128a3f] transition-colors"
+        className="fixed z-[1001] right-5 bottom-[calc(140px+2rem+env(safe-area-inset-bottom))] bg-[#1bac53] rounded-full w-11 h-11 shadow-lg flex items-center justify-center hover:bg-[#159a48] active:bg-[#128a3f] transition-colors"
         aria-label="現在地に戻る"
         title="現在地に戻る"
       >
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" style={{transform: 'rotate(60deg)'}}>
-          <path d="M12 2 L16 14 L12 11 L8 14 Z" fill="white" />
-          <path d="M12 22 L8 10 L12 13 L16 10 Z" fill="rgba(255,255,255,0.4)" />
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style={{transform: 'rotate(60deg)'}}>
+          <path d="M12 2 L19 20 L12 15 L5 20 Z" fill="white" />
         </svg>
       </button>
     </div>

@@ -11,7 +11,7 @@ const TIPS = [
   'カナダでは医師が\n森の滞在を処方します',
 ]
 
-const HALF_TIME = 2500
+const SWITCH_INTERVAL = 1700
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr]
@@ -27,23 +27,21 @@ export function LoadingScreen() {
   const [tipIndex, setTipIndex] = useState(0)
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setTipIndex(1)
-    }, HALF_TIME)
-    return () => clearTimeout(timer)
+    const t1 = setTimeout(() => setTipIndex(1), SWITCH_INTERVAL)
+    const t2 = setTimeout(() => setTipIndex(2), SWITCH_INTERVAL * 2)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [])
 
   return (
     <main className="h-[100dvh] flex flex-col items-center justify-center bg-forest text-white px-6">
-      <div className="flex flex-col items-center">
-        <img src={iconImg.src} alt="" className="h-36 w-auto mb-10" />
+      <img src={iconImg.src} alt="" className="h-36 w-auto mb-10" />
 
-        {/* プログレスバー */}
-        <div className="w-40 h-1.5 bg-white/30 overflow-hidden mb-6">
-          <div className="h-full bg-white animate-loading-progress" />
-        </div>
+      <div className="w-40 h-1.5 bg-white/30 overflow-hidden mb-6">
+        <div className="h-full bg-white animate-loading-progress" />
+      </div>
 
-        {/* 豆知識テキスト */}
+      {/* 豆知識テキスト（高さ固定で中身だけ切替） */}
+      <div className="h-[4.5rem]">
         <p className="text-white/90 text-base text-center leading-relaxed whitespace-pre-line">
           {shuffled[tipIndex]}
         </p>
