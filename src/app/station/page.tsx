@@ -194,7 +194,7 @@ export default function StationPage() {
         )}
 
         {displayPOI && (
-          <div className="fixed bottom-0 left-0 right-0 z-[1000] px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+          <div className="fixed bottom-0 left-0 right-0 z-[1000] px-4 pb-[calc(env(safe-area-inset-bottom))]">
             <div className="bg-station rounded-2xl px-6 py-5 shadow-lg">
               <div className="flex items-center">
                 <div className="flex-1 basis-0 min-w-0 text-center">
@@ -212,6 +212,9 @@ export default function StationPage() {
                 </div>
               </div>
             </div>
+            <p className="text-[8px] text-gray-600 text-right mt-1">
+              © <a href="https://openstreetmap.org/copyright" className="underline">OpenStreetMap</a> · <a href="https://carto.com" className="underline">CARTO</a> · <a href="https://maps.gsi.go.jp" className="underline">国土地理院</a> · <a href="https://project-osrm.org" className="underline">OSRM</a>
+            </p>
           </div>
         )}
       </div>

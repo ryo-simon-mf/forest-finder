@@ -52,3 +52,8 @@ html, body {
 .forest-popup .leaflet-popup-close-button:hover {
   color: #fff !important;
 }
+
+/* Attribution: ページ側で自前表示するためLeafletデフォルトを非表示 */
+.leaflet-control-attribution {
+  display: none !important;
+}

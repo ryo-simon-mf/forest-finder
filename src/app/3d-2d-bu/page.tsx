@@ -17,7 +17,7 @@ import {
   isForestDataLoaded,
 } from '@/services/localForestService'
 
-const MapLibre3DViewer = dynamic(() => import('@/components/MapLibre3DViewer'), {
+const MapLibre3DViewer = dynamic(() => import('@/components/MapLibre3DViewerBU'), {
   ssr: false,
   loading: () => (
     <div className="h-full w-full bg-forest flex items-center justify-center">

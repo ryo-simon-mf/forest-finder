@@ -217,7 +217,7 @@ export default function Map3DPage() {
 
         {/* 最寄り森林カード */}
         {displayForest && (
-          <div className="fixed bottom-0 left-0 right-0 z-[1000] px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+          <div className="fixed bottom-0 left-0 right-0 z-[1000] px-4 pb-[calc(env(safe-area-inset-bottom))]">
             <div className="bg-forest rounded-2xl px-6 py-5 shadow-lg h-[140px] overflow-hidden">
               <div className="flex items-center h-full">
                 <div className="flex-1 basis-0 min-w-0 text-center flex flex-col items-center justify-center">
@@ -235,6 +235,9 @@ export default function Map3DPage() {
                 </div>
               </div>
             </div>
+            <p className="text-[8px] text-gray-600 text-right mt-1">
+              © <a href="https://openstreetmap.org/copyright" className="underline">OpenStreetMap</a> · <a href="https://openfreemap.org" className="underline">OpenFreeMap</a> · <a href="https://openmaptiles.org" className="underline">OpenMapTiles</a> · <a href="https://project-osrm.org" className="underline">OSRM</a>
+            </p>
           </div>
         )}
       </div>

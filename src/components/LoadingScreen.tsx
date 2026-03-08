@@ -11,7 +11,7 @@ const TIPS = [
   'カナダでは医師が\n森の滞在を処方します',
 ]
 
-const TIP_INTERVAL = 3000
+const HALF_TIME = 2500
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr]
@@ -27,11 +27,11 @@ export function LoadingScreen() {
   const [tipIndex, setTipIndex] = useState(0)
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTipIndex((prev) => (prev + 1) % shuffled.length)
-    }, TIP_INTERVAL)
-    return () => clearInterval(timer)
-  }, [shuffled.length])
+    const timer = setTimeout(() => {
+      setTipIndex(1)
+    }, HALF_TIME)
+    return () => clearTimeout(timer)
+  }, [])
 
   return (
     <main className="h-[100dvh] flex flex-col items-center justify-center bg-forest text-white px-6">
