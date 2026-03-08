@@ -18,6 +18,7 @@ interface UseForestSearchOptions {
   radiusMeters?: number
   minDistanceChange?: number
   searchFn?: SearchFn
+  maxAccumulated?: number
 }
 
 interface UseForestSearchReturn {
@@ -36,7 +37,7 @@ export function useForestSearch(
   position: Position | null,
   options: UseForestSearchOptions = {}
 ): UseForestSearchReturn {
-  const { radiusMeters = 5000, minDistanceChange = 50, searchFn = searchForestsLocal } = options
+  const { radiusMeters = 5000, minDistanceChange = 50, searchFn = searchForestsLocal, maxAccumulated = 300 } = options
 
   const [result, setResult] = useState<ForestSearchResult | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -103,8 +104,8 @@ export function useForestSearch(
             }))
             .sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity))
 
-          // メモリ上限: 蓄積が300件を超えたら遠い順に削除
-          const capped = merged.length > 300 ? merged.slice(0, 300) : merged
+          // メモリ上限: 蓄積がmaxAccumulatedを超えたら遠い順に削除
+          const capped = maxAccumulated > 0 && merged.length > maxAccumulated ? merged.slice(0, maxAccumulated) : merged
 
           return {
             forests: capped,
@@ -125,14 +126,17 @@ export function useForestSearch(
 
   // 地図中心での追加検索
   const lastMapCenterRef = useRef<{ lat: number; lng: number } | null>(null)
+  const lastSearchAtRadiusRef = useRef<number>(radiusMeters)
 
   const searchAt = useCallback(
     (lat: number, lng: number) => {
-      if (lastMapCenterRef.current) {
+      const radiusChanged = lastSearchAtRadiusRef.current !== radiusMeters
+      if (lastMapCenterRef.current && !radiusChanged) {
         const dist = calculateDistance(lastMapCenterRef.current.lat, lastMapCenterRef.current.lng, lat, lng)
         if (dist < 1000) return
       }
       lastMapCenterRef.current = { lat, lng }
+      lastSearchAtRadiusRef.current = radiusMeters
 
       try {
         const searchResult = searchFn(lat, lng, radiusMeters)
@@ -157,8 +161,8 @@ export function useForestSearch(
             }))
             .sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity))
 
-          // メモリ上限: 蓄積が300件を超えたら遠い順に削除
-          const capped = merged.length > 300 ? merged.slice(0, 300) : merged
+          // メモリ上限: 蓄積がmaxAccumulatedを超えたら遠い順に削除
+          const capped = maxAccumulated > 0 && merged.length > maxAccumulated ? merged.slice(0, maxAccumulated) : merged
 
           return {
             forests: capped,

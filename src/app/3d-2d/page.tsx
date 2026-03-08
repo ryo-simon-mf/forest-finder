@@ -119,7 +119,7 @@ export default function Map3D2DPage() {
 
   const { result: forestResult, isLoading: isSearching, searchAt, resolveAddress } = useForestSearch(
     dataLoaded ? position : null,
-    { searchFn, radiusMeters }
+    { searchFn, radiusMeters, maxAccumulated: mobile ? 300 : 0 }
   )
 
   const [selectedForestId, setSelectedForestId] = useState<string | null>(null)
@@ -131,7 +131,7 @@ export default function Map3D2DPage() {
 
   // スマホ: ビューポート内の森林をMAX_MARKERS件まで表示、PC: 制限なし
   const allForests = forestResult?.forests || []
-  const nearestId = routeTarget?.id ?? forestResult?.nearest?.id
+  const nearestId = forestResult?.nearest?.id
   const displayForests = useMemo(() => {
     if (!mobile) return allForests
     if (!viewCenter) return allForests.slice(0, MAX_MARKERS)
