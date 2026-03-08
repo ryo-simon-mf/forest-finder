@@ -47,15 +47,9 @@ function formatAddress(address: string | undefined): string | undefined {
 const MIN_RADIUS = 5000
 const MIN_LOADING_MS = 5000
 
-function isMobile() {
-  if (typeof window === 'undefined') return true
-  return window.matchMedia('(pointer: coarse)').matches && window.innerWidth < 1024
-}
-
 
 export default function Map3D2DPage() {
-  const [mobile] = useState(() => isMobile())
-  const MAX_RADIUS = mobile ? 50000 : 999999
+  const MAX_RADIUS = 999999
 
   const [started, setStarted] = useState(false)
   const [dataLoaded, setDataLoaded] = useState(isForestDataLoaded())
@@ -115,7 +109,7 @@ export default function Map3D2DPage() {
 
   const { result: forestResult, isLoading: isSearching, searchAt, resolveAddress } = useForestSearch(
     dataLoaded ? position : null,
-    { searchFn, radiusMeters, maxAccumulated: mobile ? 1000 : 0 }
+    { searchFn, radiusMeters, maxAccumulated: 0 }
   )
 
   const [selectedForestId, setSelectedForestId] = useState<string | null>(null)
