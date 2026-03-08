@@ -48,6 +48,7 @@ export default function MapLibre3DViewer({
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map())
+  const [useMobile] = useState(() => isTouchDevice())
   const locationMarkerRef = useRef<maplibregl.Marker | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
   const animTargetRef = useRef<{ center: maplibregl.LngLat; zoom: number; bearing: number; pitch: number } | null>(null)
@@ -292,7 +293,7 @@ export default function MapLibre3DViewer({
       .addTo(map)
   }, [latitude, longitude, mapLoaded, heading])
 
-  // 森林マーカー（ビューポート内のみ表示 + 差分更新）
+  // 森林マーカー
   const handleForestClick = useCallback(
     (index: number) => {
       onForestClick?.(index)
@@ -300,29 +301,137 @@ export default function MapLibre3DViewer({
     [onForestClick]
   )
 
+  // --- モバイル: GeoJSON source + クラスタリング（WebGL描画） ---
+  const forestClickHandlerRef = useRef(handleForestClick)
+  forestClickHandlerRef.current = handleForestClick
+
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !mapLoaded) return
+    if (!map || !mapLoaded || !useMobile) return
+
+    const sourceData: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: forestMarkers.map((fm, idx) => ({
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: [fm.lon, fm.lat] },
+        properties: { idx, isNearest: fm.isNearest ? 1 : 0 },
+      })),
+    }
+
+    if (map.getSource('forests')) {
+      ;(map.getSource('forests') as maplibregl.GeoJSONSource).setData(sourceData)
+      return
+    }
+
+    map.addSource('forests', {
+      type: 'geojson',
+      data: sourceData,
+      cluster: true,
+      clusterMaxZoom: 14,
+      clusterRadius: 50,
+    })
+
+    // クラスタ円
+    map.addLayer({
+      id: 'clusters',
+      type: 'circle',
+      source: 'forests',
+      filter: ['has', 'point_count'],
+      paint: {
+        'circle-color': '#1bac53',
+        'circle-radius': [
+          'step', ['get', 'point_count'],
+          18,   // default
+          10, 22,
+          50, 28,
+          200, 34,
+        ],
+        'circle-opacity': 0.75,
+        'circle-stroke-width': 2,
+        'circle-stroke-color': 'rgba(255,255,255,0.8)',
+      },
+    })
+
+    // クラスタ件数ラベル
+    map.addLayer({
+      id: 'cluster-count',
+      type: 'symbol',
+      source: 'forests',
+      filter: ['has', 'point_count'],
+      layout: {
+        'text-field': '{point_count_abbreviated}',
+        'text-size': 13,
+      },
+      paint: {
+        'text-color': '#ffffff',
+      },
+    })
+
+    // 個別マーカー（非クラスタ）— 最寄りとそれ以外で色・サイズ分け
+    map.addLayer({
+      id: 'unclustered-point',
+      type: 'circle',
+      source: 'forests',
+      filter: ['!', ['has', 'point_count']],
+      paint: {
+        'circle-color': ['case', ['==', ['get', 'isNearest'], 1], 'rgba(27, 172, 83, 1)', '#8fd4a4'],
+        'circle-radius': ['case', ['==', ['get', 'isNearest'], 1], 10, 7],
+        'circle-stroke-width': 2,
+        'circle-stroke-color': '#ffffff',
+        'circle-opacity': 0.9,
+      },
+    })
+
+    // クラスタクリック → ズームイン
+    map.on('click', 'clusters', (e) => {
+      const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] })
+      if (!features.length) return
+      const clusterId = features[0].properties?.cluster_id
+      const source = map.getSource('forests') as maplibregl.GeoJSONSource
+      source.getClusterExpansionZoom(clusterId).then((zoom) => {
+        const coords = (features[0].geometry as GeoJSON.Point).coordinates
+        map.easeTo({ center: [coords[0], coords[1]], zoom: zoom + 1, duration: 500 })
+      })
+    })
+
+    // 個別マーカークリック → 森林選択
+    map.on('click', 'unclustered-point', (e) => {
+      const features = map.queryRenderedFeatures(e.point, { layers: ['unclustered-point'] })
+      if (!features.length) return
+      const idx = features[0].properties?.idx
+      if (idx !== undefined) {
+        forestClickHandlerRef.current(idx)
+      }
+    })
+
+    // ホバーカーソル
+    map.on('mouseenter', 'clusters', () => { map.getCanvas().style.cursor = 'pointer' })
+    map.on('mouseleave', 'clusters', () => { map.getCanvas().style.cursor = '' })
+    map.on('mouseenter', 'unclustered-point', () => { map.getCanvas().style.cursor = 'pointer' })
+    map.on('mouseleave', 'unclustered-point', () => { map.getCanvas().style.cursor = '' })
+  }, [forestMarkers, mapLoaded, useMobile])
+
+  // --- PC: DOM Marker（ビューポート内のみ表示 + 差分更新） ---
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapLoaded || useMobile) return
 
     const visibleBounds = map.getBounds()
-    const padding = 0.01 // 少し余裕を持たせる
+    const padding = 0.01
     const paddedBounds = new maplibregl.LngLatBounds(
       [visibleBounds.getWest() - padding, visibleBounds.getSouth() - padding],
       [visibleBounds.getEast() + padding, visibleBounds.getNorth() + padding]
     )
 
-    // 新しいマーカーセットのキーを作成（isNearestをキーに含めて色変更時に再作成）
     const newKeys = new Set<string>()
     const markersToAdd: { fm: ForestMarker; idx: number; key: string }[] = []
 
     forestMarkers.forEach((fm, idx) => {
       const key = `${fm.lat},${fm.lon}`
       const fullKey = `${key}:${fm.isNearest ? 1 : 0}`
-      // ビューポート内のマーカーのみ表示
       if (paddedBounds.contains([fm.lon, fm.lat])) {
         newKeys.add(fullKey)
         if (!markersRef.current.has(fullKey)) {
-          // isNearestが変わった場合、古いキーのマーカーを削除
           const altKey = `${key}:${fm.isNearest ? 0 : 1}`
           if (markersRef.current.has(altKey)) {
             markersRef.current.get(altKey)!.remove()
@@ -333,7 +442,6 @@ export default function MapLibre3DViewer({
       }
     })
 
-    // ビューポート外 or 不要なマーカーを削除
     markersRef.current.forEach((marker, key) => {
       if (!newKeys.has(key)) {
         marker.remove()
@@ -341,7 +449,6 @@ export default function MapLibre3DViewer({
       }
     })
 
-    // 新規マーカーを追加
     markersToAdd.forEach(({ fm, idx, key }) => {
       const iconSize = fm.isNearest ? 32 : 24
       const color = fm.isNearest ? 'rgba(27, 172, 83, 1)' : '#8fd4a4'
@@ -370,16 +477,6 @@ export default function MapLibre3DViewer({
       `
       el.appendChild(icon)
 
-      let touchMoved = false
-      el.addEventListener('touchstart', () => { touchMoved = false }, { passive: true })
-      el.addEventListener('touchmove', () => { touchMoved = true }, { passive: true })
-      el.addEventListener('touchend', (e) => {
-        if (!touchMoved) {
-          e.preventDefault()
-          e.stopPropagation()
-          handleForestClick(idx)
-        }
-      })
       el.addEventListener('click', (e) => {
         e.stopPropagation()
         handleForestClick(idx)
@@ -391,12 +488,12 @@ export default function MapLibre3DViewer({
 
       markersRef.current.set(key, marker)
     })
-  }, [forestMarkers, handleForestClick, mapLoaded])
+  }, [forestMarkers, handleForestClick, mapLoaded, useMobile])
 
-  // ズーム/パン時にマーカーの表示/非表示を更新
+  // PC: ズーム/パン時にマーカーの表示/非表示を更新
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !mapLoaded) return
+    if (!map || !mapLoaded || useMobile) return
 
     let viewportTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -431,7 +528,7 @@ export default function MapLibre3DViewer({
       map.off('moveend', updateVisibleMarkers)
       map.off('zoomend', updateVisibleMarkers)
     }
-  }, [mapLoaded])
+  }, [mapLoaded, useMobile])
 
   // ルート表示（アニメーション付き）+ カメラ移動
   const fittedRouteRef = useRef<string | null>(null)
