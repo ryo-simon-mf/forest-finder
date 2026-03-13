@@ -19,11 +19,12 @@ export function LocationPermission({
   }
 
   return (
-    <div className="flex flex-col items-center h-[100dvh] bg-forest text-white p-6">
-      <div className="flex-1 flex items-end pb-8">
+    <div className="relative flex flex-col items-center h-[100dvh] bg-forest text-white p-6">
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <img src={logoImg.src} alt="最寄りの森" className="h-48 w-auto" />
       </div>
-      <div className="flex-1 flex flex-col items-center pt-6 max-w-md w-full text-center">
+      <div style={{ height: 'calc(50% + 120px)' }} />
+      <div className="flex flex-col items-center max-w-md w-full text-center">
 
         {/* <p className="text-white/90 text-base leading-relaxed mb-10">
           森はストレスの特効薬です。

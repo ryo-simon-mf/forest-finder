@@ -48,20 +48,20 @@ export function ForestTipBubble() {
   }, [visible, shuffled.length])
 
   return (
-    <div className="absolute top-3 left-3 right-3 z-[1000] pointer-events-none">
+    <div className="absolute top-3 right-4 z-[1000] pointer-events-none flex justify-end">
       <div
-        className="bg-[#faf6f0] border-2 border-forest/80 rounded-xl px-4 py-3 shadow-lg relative transition-all duration-500 ease-in-out"
+        className="relative bg-[rgb(200,237,215)] border-2 border-[#1bac53] rounded-xl px-5 py-2.5 transition-all duration-500 ease-in-out"
         style={{
           opacity: visible ? 1 : 0,
-          transform: visible ? 'translateY(0)' : 'translateY(-12px)',
+          transform: visible ? 'translateX(0)' : 'translateX(20px)',
         }}
       >
-        <p className="text-gray-700 text-sm leading-relaxed text-center">
+        <p className="text-[#1bac53] text-sm font-bold leading-relaxed text-center whitespace-nowrap">
           {shuffled[tipIndex]}
         </p>
-        {/* 吹き出しの三角（右上向き） */}
-        <div className="absolute -top-[10px] right-6 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[10px] border-b-forest/80" />
-        <div className="absolute -top-[7px] right-[25.5px] w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-b-[8px] border-b-[#faf6f0]" />
+        {/* 右向き三角（吹き出し尻尾） */}
+        <div className="absolute top-1/2 -right-[10px] -translate-y-1/2 w-0 h-0 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-l-[10px] border-l-[#1bac53]" />
+        <div className="absolute top-1/2 -right-[7px] -translate-y-1/2 w-0 h-0 border-t-[7px] border-t-transparent border-b-[7px] border-b-transparent border-l-[8px] border-l-[rgb(200,237,215)]" />
       </div>
     </div>
   )

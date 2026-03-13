@@ -273,23 +273,33 @@ export default function MapLibre3DViewer({
     })
   }, [animateReady, mapLoaded])
 
-  // 現在地マーカー（方向付き）
+  // 現在地マーカー（方向付き）— 地図回転を補正
+  const headingRef = useRef<number | null | undefined>(heading)
+  headingRef.current = heading
+
+  const updateArrowRotation = useCallback(() => {
+    const map = mapRef.current
+    const marker = locationMarkerRef.current
+    if (!map || !marker) return
+    const arrow = marker.getElement().querySelector('.direction-arrow') as HTMLElement | null
+    if (!arrow) return
+    const h = headingRef.current
+    if (h !== null && h !== undefined) {
+      const mapBearing = map.getBearing()
+      arrow.style.display = 'block'
+      arrow.style.transform = `rotate(${h - mapBearing}deg)`
+    } else {
+      arrow.style.display = 'none'
+    }
+  }, [])
+
   useEffect(() => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
 
     if (locationMarkerRef.current) {
       locationMarkerRef.current.setLngLat([longitude, latitude])
-      const el = locationMarkerRef.current.getElement()
-      const arrow = el.querySelector('.direction-arrow') as HTMLElement | null
-      if (arrow) {
-        if (heading !== null && heading !== undefined) {
-          arrow.style.display = 'block'
-          arrow.style.transform = `rotate(${heading}deg)`
-        } else {
-          arrow.style.display = 'none'
-        }
-      }
+      updateArrowRotation()
       return
     }
 
@@ -305,8 +315,7 @@ export default function MapLibre3DViewer({
       position: absolute;
       top: 0; left: 0;
       width: 80px; height: 80px;
-      display: ${heading !== null && heading !== undefined ? 'block' : 'none'};
-      transform: rotate(${heading ?? 0}deg);
+      display: none;
       transform-origin: center center;
     `
     arrowDiv.innerHTML = `
@@ -342,7 +351,18 @@ export default function MapLibre3DViewer({
     locationMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'center' })
       .setLngLat([longitude, latitude])
       .addTo(map)
-  }, [latitude, longitude, mapLoaded, heading])
+
+    updateArrowRotation()
+  }, [latitude, longitude, mapLoaded, heading, updateArrowRotation])
+
+  // 地図回転時に方向矢印を補正
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapLoaded) return
+    const onRotate = () => updateArrowRotation()
+    map.on('rotate', onRotate)
+    return () => { map.off('rotate', onRotate) }
+  }, [mapLoaded, updateArrowRotation])
 
   // 森林マーカー
   const handleForestClick = useCallback(
@@ -385,8 +405,8 @@ export default function MapLibre3DViewer({
     const setupLayers = async () => {
       if (!mobileIconsLoadedRef.current) {
         const [nearestIcon, normalIcon] = await Promise.all([
-          createIconImage(iconImg.src, 32, 'rgba(27, 172, 83, 1)'),
-          createIconImage(iconImg.src, 24, '#8fd4a4'),
+          createIconImage(iconImg.src, 48, 'rgba(27, 172, 83, 1)'),
+          createIconImage(iconImg.src, 36, '#8fd4a4'),
         ])
         map.addImage('forest-nearest', nearestIcon, { pixelRatio: window.devicePixelRatio || 1 })
         map.addImage('forest-normal', normalIcon, { pixelRatio: window.devicePixelRatio || 1 })
@@ -501,7 +521,7 @@ export default function MapLibre3DViewer({
     })
 
     markersToAdd.forEach(({ fm, idx, key }) => {
-      const iconSize = fm.isNearest ? 32 : 24
+      const iconSize = fm.isNearest ? 48 : 36
       const color = fm.isNearest ? 'rgba(27, 172, 83, 1)' : '#8fd4a4'
       const tapSize = Math.max(44, iconSize)
       const el = document.createElement('div')
@@ -729,6 +749,13 @@ export default function MapLibre3DViewer({
     })
   }, [latitude, longitude, topDown])
 
+  // ノースアップ（bearing=0にリセット）
+  const handleNorthUp = useCallback(() => {
+    const map = mapRef.current
+    if (!map) return
+    map.easeTo({ bearing: 0, duration: 600 })
+  }, [])
+
   // 現在地ボタンのタッチ対応（ダブルタップ不要にする）
   const recenterTouchRef = useRef(false)
   const handleRecenterTouch = useCallback((e: React.TouchEvent) => {
@@ -737,7 +764,6 @@ export default function MapLibre3DViewer({
     handleRecenter()
   }, [handleRecenter])
   const handleRecenterClick = useCallback(() => {
-    // touchendで既に処理済みならスキップ
     if (recenterTouchRef.current) {
       recenterTouchRef.current = false
       return
@@ -745,9 +771,37 @@ export default function MapLibre3DViewer({
     handleRecenter()
   }, [handleRecenter])
 
+  const northTouchRef = useRef(false)
+  const handleNorthTouch = useCallback((e: React.TouchEvent) => {
+    e.preventDefault()
+    northTouchRef.current = true
+    handleNorthUp()
+  }, [handleNorthUp])
+  const handleNorthClick = useCallback(() => {
+    if (northTouchRef.current) {
+      northTouchRef.current = false
+      return
+    }
+    handleNorthUp()
+  }, [handleNorthUp])
+
   return (
     <div className="h-full w-full relative">
       <div ref={containerRef} className="h-full w-full" />
+
+      {/* ノースアップボタン */}
+      <button
+        onTouchEnd={handleNorthTouch}
+        onClick={handleNorthClick}
+        className="fixed z-[1001] right-5 bottom-[calc(140px+2rem+44px+0.75rem+env(safe-area-inset-bottom))] bg-[#1bac53] rounded-full w-11 h-11 shadow-lg flex items-center justify-center hover:bg-[#159a48] active:bg-[#128a3f] transition-colors touch-manipulation"
+        aria-label="ノースアップ"
+        title="ノースアップ（北を上に）"
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2 L16 10 L12 8 L8 10 Z" fill="white" />
+          <text x="12" y="20" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">N</text>
+        </svg>
+      </button>
 
       {/* 現在地に戻るボタン */}
       <button
