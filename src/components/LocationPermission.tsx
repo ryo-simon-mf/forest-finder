@@ -20,18 +20,17 @@ export function LocationPermission({
 
   return (
     <div className="relative flex flex-col items-center h-[100dvh] bg-forest text-white p-6">
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      {/* ロゴ（固定位置） */}
+      <div className="absolute top-[35%] left-0 right-0 flex flex-col items-center pointer-events-none">
         <img src={logoImg.src} alt="最寄りの森" className="h-48 w-auto" />
-      </div>
-      <div style={{ height: 'calc(50% + 120px)' }} />
-      <div className="flex flex-col items-center max-w-md w-full text-center">
-
-        {/* <p className="text-white/90 text-base leading-relaxed mb-10">
-          森はストレスの特効薬です。
-          <br />
+        <p className="text-white/80 text-base mt-4">
           お疲れのあなた、お近くの森林へ。
-        </p> */}
+        </p>
+      </div>
 
+      {/* ボタン + 注釈（ロゴ下に配置） */}
+      <div style={{ height: 'calc(35% + 12rem + 3rem)' }} />
+      <div className="flex flex-col items-center max-w-md w-full text-center">
         {status === 'idle' && (
           <>
             <button

@@ -38,10 +38,13 @@ export function LoadingScreen() {
 
   return (
     <main className="relative h-[100dvh] flex flex-col items-center bg-forest text-white px-6">
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      {/* ロゴ（固定位置 — LocationPermissionと同じ） */}
+      <div className="absolute top-[35%] left-0 right-0 flex flex-col items-center pointer-events-none">
         <img src={logoImg.src} alt="最寄りの森" className="h-48 w-auto" />
       </div>
-      <div style={{ height: 'calc(50% + 120px)' }} />
+
+      {/* ローディングバー + Tips（ロゴ下に配置） */}
+      <div style={{ height: 'calc(35% + 12rem + 3rem)' }} />
       <div className="flex flex-col items-center">
         <div className="w-40 h-1.5 bg-white/30 overflow-hidden mb-6">
           <div className="h-full bg-white animate-loading-progress" />
