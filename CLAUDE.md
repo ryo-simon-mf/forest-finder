@@ -152,6 +152,14 @@ NEXT_PUBLIC_GSI_API_KEY=    # 国土地理院API（必要な場合）
 - **問題**: `npx gh-pages`がgh-pagesブランチにpush → Cloudflareがビルド試行 → package.jsonなしでエラー
 - **解決**: Preview branchを「None」に設定し、masterブランチのみ自動デプロイ
 
+## 画面遷移の必須ルール
+
+### 動画（logo.mp4）の表示位置は遷移前後で絶対にずらさないこと
+- `LocationPermission`（ランディング）→ `LoadingScreen`（ローディング）の遷移で、動画の表示位置が1pxもずれてはならない
+- **実装方法**: 両コンポーネントとも `justify-center` ではなく、固定スペーサー `calc(50dvh - 12rem)` で動画の上端位置を揃える
+- `justify-center` は動画の下の要素量で動画位置が変わるため使用禁止
+- 動画サイズ: `h-72`（288px）固定、変更禁止
+
 ## 地図UI設計メモ
 
 - **現在地ボタン**: MapContainer外にfixed配置（Leafletのoverflow:hiddenを回避するため）

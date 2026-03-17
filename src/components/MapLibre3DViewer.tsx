@@ -3,7 +3,8 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import iconImg from '@/img/icon.svg'
+import selectIconImg from '@/img/select_color.svg'
+import nonSelectIconImg from '@/img/non_select_color.svg'
 
 interface ForestMarker {
   lat: number
@@ -28,20 +29,17 @@ interface MapLibre3DViewerProps {
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron'
 const ANIM_DURATION = 1500
 
-// SVGアイコンをMapLibre用のImageDataに変換（アスペクト比を維持）
-// sizeはアイコンの高さ基準（icon.svgは36x64の縦長）
-function createIconImage(
+// SVGをそのままの色で画像化
+function createSvgImage(
   svgSrc: string,
   height: number,
-  color: string
+  aspectRatio: number = 214.05 / 356.11
 ): Promise<{ width: number; height: number; data: Uint8ClampedArray }> {
   return new Promise((resolve) => {
     const canvas = document.createElement('canvas')
     const ratio = window.devicePixelRatio || 1
-    // icon.svgのアスペクト比: 36:64
-    const aspect = 36 / 64
     const pxH = Math.round(height * ratio)
-    const pxW = Math.round(pxH * aspect)
+    const pxW = Math.round(pxH * aspectRatio)
     canvas.width = pxW
     canvas.height = pxH
     const ctx = canvas.getContext('2d')!
@@ -49,28 +47,10 @@ function createIconImage(
     img.onload = () => {
       ctx.drawImage(img, 0, 0, pxW, pxH)
       const imageData = ctx.getImageData(0, 0, pxW, pxH)
-      const [r, g, b] = parseColor(color)
-      for (let i = 0; i < imageData.data.length; i += 4) {
-        if (imageData.data[i + 3] > 0) {
-          imageData.data[i] = r
-          imageData.data[i + 1] = g
-          imageData.data[i + 2] = b
-        }
-      }
       resolve({ width: pxW, height: pxH, data: imageData.data })
     }
     img.src = svgSrc
   })
-}
-
-function parseColor(color: string): [number, number, number] {
-  if (color.startsWith('#')) {
-    const hex = color.slice(1)
-    return [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16)]
-  }
-  const m = color.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/)
-  if (m) return [+m[1], +m[2], +m[3]]
-  return [0, 0, 0]
 }
 
 // タッチデバイス判定（スマホ/タブレット分岐）
@@ -381,6 +361,7 @@ export default function MapLibre3DViewer({
     const map = mapRef.current
     if (!map || !mapLoaded || !useMobile) return
 
+    const hasAnySelected = forestMarkers.some((fm) => fm.isSelected)
     const sourceData: GeoJSON.FeatureCollection = {
       type: 'FeatureCollection',
       features: forestMarkers.map((fm, idx) => ({
@@ -390,6 +371,8 @@ export default function MapLibre3DViewer({
           idx,
           isNearest: fm.isNearest ? 1 : 0,
           isSelected: fm.isSelected ? 1 : 0,
+          // 最寄りがアクティブ: 選択なし or 最寄り自身が選択中
+          nearestActive: (fm.isNearest && (!hasAnySelected || fm.isSelected)) ? 1 : 0,
           // ピン留め（nearest/selected）は常に表示、それ以外はコリジョン検出で間引き
           pinned: (fm.isNearest || fm.isSelected) ? 1 : 0,
         },
@@ -404,12 +387,16 @@ export default function MapLibre3DViewer({
     // SVGアイコンをMapLibreに登録してからレイヤー追加
     const setupLayers = async () => {
       if (!mobileIconsLoadedRef.current) {
-        const [nearestIcon, normalIcon] = await Promise.all([
-          createIconImage(iconImg.src, 48, 'rgba(27, 172, 83, 1)'),
-          createIconImage(iconImg.src, 36, '#8fd4a4'),
+        const [nearestActiveIcon, nearestInactiveIcon, selectedIcon, nonSelectIcon] = await Promise.all([
+          createSvgImage(selectIconImg.src, 48),
+          createSvgImage(nonSelectIconImg.src, 48),
+          createSvgImage(selectIconImg.src, 36),
+          createSvgImage(nonSelectIconImg.src, 36),
         ])
-        map.addImage('forest-nearest', nearestIcon, { pixelRatio: window.devicePixelRatio || 1 })
-        map.addImage('forest-normal', normalIcon, { pixelRatio: window.devicePixelRatio || 1 })
+        map.addImage('forest-nearest-active', nearestActiveIcon, { pixelRatio: window.devicePixelRatio || 1 })
+        map.addImage('forest-nearest-inactive', nearestInactiveIcon, { pixelRatio: window.devicePixelRatio || 1 })
+        map.addImage('forest-normal', nonSelectIcon, { pixelRatio: window.devicePixelRatio || 1 })
+        map.addImage('forest-selected', selectedIcon, { pixelRatio: window.devicePixelRatio || 1 })
         mobileIconsLoadedRef.current = true
       }
 
@@ -418,37 +405,7 @@ export default function MapLibre3DViewer({
         data: sourceData,
       })
 
-      // 最寄りマーカー（常に表示、最前面）
-      map.addLayer({
-        id: 'forest-nearest',
-        type: 'symbol',
-        source: 'forests',
-        filter: ['==', ['get', 'isNearest'], 1],
-        layout: {
-          'icon-image': 'forest-nearest',
-          'icon-size': 1,
-          'icon-allow-overlap': true,
-          'icon-ignore-placement': true,
-          'symbol-sort-key': 0,
-        },
-      })
-
-      // 選択中マーカー（常に表示）
-      map.addLayer({
-        id: 'forest-selected',
-        type: 'symbol',
-        source: 'forests',
-        filter: ['all', ['==', ['get', 'isSelected'], 1], ['!=', ['get', 'isNearest'], 1]],
-        layout: {
-          'icon-image': 'forest-normal',
-          'icon-size': 1,
-          'icon-allow-overlap': true,
-          'icon-ignore-placement': true,
-          'symbol-sort-key': 1,
-        },
-      })
-
-      // 通常マーカー（コリジョン検出で自動間引き、Google Maps的挙動）
+      // 通常マーカー（最下層、コリジョン検出で自動間引き）
       map.addLayer({
         id: 'forest-normal',
         type: 'symbol',
@@ -460,6 +417,36 @@ export default function MapLibre3DViewer({
           'icon-allow-overlap': false,
           'icon-padding': 2,
           'symbol-sort-key': 2,
+        },
+      })
+
+      // 最寄りマーカー（通常の上、サイズ固定48px、色はnearestActiveで切替）
+      map.addLayer({
+        id: 'forest-nearest',
+        type: 'symbol',
+        source: 'forests',
+        filter: ['==', ['get', 'isNearest'], 1],
+        layout: {
+          'icon-image': ['case', ['==', ['get', 'nearestActive'], 1], 'forest-nearest-active', 'forest-nearest-inactive'],
+          'icon-size': 1,
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+          'symbol-sort-key': 0,
+        },
+      })
+
+      // 選択中マーカー（最前面）
+      map.addLayer({
+        id: 'forest-selected',
+        type: 'symbol',
+        source: 'forests',
+        filter: ['all', ['==', ['get', 'isSelected'], 1], ['!=', ['get', 'isNearest'], 1]],
+        layout: {
+          'icon-image': 'forest-selected',
+          'icon-size': 1,
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+          'symbol-sort-key': 0,
         },
       })
 
@@ -499,15 +486,17 @@ export default function MapLibre3DViewer({
 
     forestMarkers.forEach((fm, idx) => {
       const key = `${fm.lat},${fm.lon}`
-      const fullKey = `${key}:${fm.isNearest ? 1 : 0}`
+      const fullKey = `${key}:${fm.isNearest ? 1 : 0}:${fm.isSelected ? 1 : 0}`
       if (paddedBounds.contains([fm.lon, fm.lat])) {
         newKeys.add(fullKey)
         if (!markersRef.current.has(fullKey)) {
-          const altKey = `${key}:${fm.isNearest ? 0 : 1}`
-          if (markersRef.current.has(altKey)) {
-            markersRef.current.get(altKey)!.remove()
-            markersRef.current.delete(altKey)
-          }
+          // 同一座標の古い状態のマーカーを削除
+          markersRef.current.forEach((marker, existingKey) => {
+            if (existingKey.startsWith(key + ':')) {
+              marker.remove()
+              markersRef.current.delete(existingKey)
+            }
+          })
           markersToAdd.push({ fm, idx, key: fullKey })
         }
       }
@@ -520,9 +509,11 @@ export default function MapLibre3DViewer({
       }
     })
 
+    const hasAnySelectedPC = forestMarkers.some((fm) => fm.isSelected)
     markersToAdd.forEach(({ fm, idx, key }) => {
+      const isActiveColor = fm.isSelected || (fm.isNearest && (!hasAnySelectedPC || fm.isSelected))
       const iconSize = fm.isNearest ? 48 : 36
-      const color = fm.isNearest ? 'rgba(27, 172, 83, 1)' : '#8fd4a4'
+      const svgSrc = isActiveColor ? selectIconImg.src : nonSelectIconImg.src
       const tapSize = Math.max(44, iconSize)
       const el = document.createElement('div')
       el.style.cssText = `
@@ -532,19 +523,12 @@ export default function MapLibre3DViewer({
         justify-content: center;
         cursor: pointer;
       `
-      const icon = document.createElement('div')
+      const icon = document.createElement('img')
+      icon.src = svgSrc
       icon.style.cssText = `
-        width: ${iconSize}px; height: ${iconSize}px;
-        background-color: ${color};
-        -webkit-mask-image: url(${iconImg.src});
-        mask-image: url(${iconImg.src});
-        -webkit-mask-size: contain;
-        mask-size: contain;
-        -webkit-mask-repeat: no-repeat;
-        mask-repeat: no-repeat;
-        -webkit-mask-position: center;
-        mask-position: center;
-        ${fm.isNearest ? 'filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));' : ''}
+        width: auto;
+        height: ${iconSize}px;
+        ${isActiveColor ? 'filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));' : ''}
       `
       el.appendChild(icon)
 
@@ -683,6 +667,8 @@ export default function MapLibre3DViewer({
       },
     })
 
+    // ルートラインは全森林マーカーの下に描画
+    const beforeLayer = ['forest-normal', 'forest-selected', 'forest-nearest'].find(id => map.getLayer(id))
     map.addLayer({
       id: 'route-line',
       type: 'line',
@@ -702,7 +688,7 @@ export default function MapLibre3DViewer({
         'line-opacity': 0.85,
         'line-dasharray': [2, 1.5],
       },
-    })
+    }, beforeLayer)
 
     const totalPoints = fullCoordinates.length
     const startTime = performance.now()

@@ -1,7 +1,7 @@
 'use client'
 
 import type { GeolocationStatus } from '@/types/geolocation'
-import logoImg from '@/img/logo.png'
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
 
 interface LocationPermissionProps {
   status: GeolocationStatus
@@ -19,18 +19,26 @@ export function LocationPermission({
   }
 
   return (
-    <div className="relative flex flex-col items-center h-[100dvh] bg-forest text-white p-6">
-      {/* ロゴ（固定位置） */}
-      <div className="absolute top-[35%] left-0 right-0 flex flex-col items-center pointer-events-none">
-        <img src={logoImg.src} alt="最寄りの森" className="h-48 w-auto" />
-        <p className="text-white/80 text-base mt-4">
+    <div className="flex flex-col items-center h-[100dvh] bg-[rgb(69,179,101)] text-white px-6 overflow-hidden">
+      {/* 固定スペーサー: 動画位置をLoadingScreenと完全一致させる */}
+      <div className="flex-none" style={{ height: 'calc(50dvh - 12rem)' }} />
+
+      <video
+        src={`${basePath}/logo.mp4`}
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="h-72 w-auto flex-none"
+      />
+
+      <div className="flex-none mt-4 mb-8 text-center">
+        <p className="text-white/80 text-base">
           お疲れのあなた、お近くの森林へ。
         </p>
       </div>
 
-      {/* ボタン + 注釈（ロゴ下に配置） */}
-      <div style={{ height: 'calc(35% + 12rem + 3rem)' }} />
-      <div className="flex flex-col items-center max-w-md w-full text-center">
+      <div className="flex-none text-center">
         {status === 'idle' && (
           <>
             <button
