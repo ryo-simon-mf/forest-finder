@@ -45,11 +45,12 @@ export function LocationPermission({
         />
       </div>
 
-      <div className="flex-none mt-4 mb-8 text-center">
+      {/* <div className="flex-none mt-4 mb-8 text-center">
         <p className="text-white/80 text-base">
           お疲れのあなた、お近くの森林へ。
         </p>
-      </div>
+      </div> */}
+      <div className="flex-none mt-4 mb-8" />
 
       <div className="flex-none text-center">
         {status === 'idle' && (

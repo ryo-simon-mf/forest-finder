@@ -50,18 +50,17 @@ export function ForestTipBubble() {
   return (
     <div className="absolute top-3 right-4 z-[1000] pointer-events-none flex justify-end">
       <div
-        className="relative bg-[rgb(200,237,215)] border-2 border-[#1bac53] rounded-xl px-5 py-2.5 transition-all duration-500 ease-in-out"
+        className="relative bg-[#1bac53] rounded-xl px-5 py-2.5 transition-all duration-500 ease-in-out"
         style={{
           opacity: visible ? 1 : 0,
           transform: visible ? 'translateX(0)' : 'translateX(20px)',
         }}
       >
-        <p className="text-[#1bac53] text-sm font-bold leading-relaxed text-center whitespace-nowrap">
+        <p className="text-white text-sm font-bold leading-relaxed text-center whitespace-nowrap">
           {shuffled[tipIndex]}
         </p>
         {/* 右向き三角（吹き出し尻尾） */}
         <div className="absolute top-1/2 -right-[10px] -translate-y-1/2 w-0 h-0 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-l-[10px] border-l-[#1bac53]" />
-        <div className="absolute top-1/2 -right-[7px] -translate-y-1/2 w-0 h-0 border-t-[7px] border-t-transparent border-b-[7px] border-b-transparent border-l-[8px] border-l-[rgb(200,237,215)]" />
       </div>
     </div>
   )
