@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import titleTypoImg from '@/img/title_typo.svg'
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
 
@@ -11,11 +11,7 @@ const TIPS = [
 ]
 
 export function LoadingScreen() {
-  const [tip, setTip] = useState(TIPS[0])
-
-  useEffect(() => {
-    setTip(TIPS[Math.floor(Math.random() * TIPS.length)])
-  }, [])
+  const tip = TIPS[0]
 
   return (
     <main className="h-[100dvh] flex flex-col items-center bg-[rgb(0,160,85)] text-white px-6 overflow-hidden">

@@ -11,17 +11,7 @@ const TIPS = [
 const SHOW_DURATION = 5000
 const HIDE_DURATION = 15000
 
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr]
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]]
-  }
-  return a
-}
-
 export function ForestTipBubble() {
-  const [shuffled] = useState(() => shuffle(TIPS))
   const [tipIndex, setTipIndex] = useState(0)
   const [visible, setVisible] = useState(true)
 
@@ -37,7 +27,7 @@ export function ForestTipBubble() {
       } else {
         // 非表示中 → HIDE_DURATION後に次のTIPで表示
         timeout = setTimeout(() => {
-          setTipIndex((prev) => (prev + 1) % shuffled.length)
+          setTipIndex((prev) => (prev + 1) % TIPS.length)
           setVisible(true)
         }, HIDE_DURATION)
       }
@@ -45,7 +35,7 @@ export function ForestTipBubble() {
 
     cycle()
     return () => clearTimeout(timeout)
-  }, [visible, shuffled.length])
+  }, [visible])
 
   return (
     <div className="absolute top-3 right-4 z-[1000] pointer-events-none flex justify-end">
@@ -57,7 +47,7 @@ export function ForestTipBubble() {
         }}
       >
         <p className="text-white text-sm font-bold leading-relaxed text-center whitespace-nowrap">
-          {shuffled[tipIndex]}
+          {TIPS[tipIndex]}
         </p>
         {/* 右向き三角（吹き出し尻尾） */}
         <div className="absolute top-1/2 -right-[10px] -translate-y-1/2 w-0 h-0 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-l-[10px] border-l-[#1bac53]" />
