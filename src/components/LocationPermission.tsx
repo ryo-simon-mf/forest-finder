@@ -1,6 +1,7 @@
 'use client'
 
 import type { GeolocationStatus } from '@/types/geolocation'
+import titleTypoImg from '@/img/title_typo.svg'
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
 
 interface LocationPermissionProps {
@@ -19,18 +20,30 @@ export function LocationPermission({
   }
 
   return (
-    <div className="flex flex-col items-center h-[100dvh] bg-[rgb(69,179,101)] text-white px-6 overflow-hidden">
+    <div className="flex flex-col items-center h-[100dvh] bg-[rgb(0,160,85)] text-white px-6 overflow-hidden">
       {/* 固定スペーサー: 動画位置をLoadingScreenと完全一致させる */}
       <div className="flex-none" style={{ height: 'calc(50dvh - 12rem)' }} />
 
-      <video
-        src={`${basePath}/logo.mp4`}
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="h-72 w-auto flex-none"
-      />
+      <div className="relative h-72 flex-none">
+        {/* <video
+          src={`${basePath}/logo.mp4`}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="h-72 w-auto opacity-20"
+        /> */}
+        <img
+          src={`${basePath}/logo.gif`}
+          alt=""
+          className="h-72 w-auto scale-[1.2]"
+        />
+        <img
+          src={titleTypoImg.src}
+          alt=""
+          className="absolute left-1/2 -translate-x-1/2 bottom-10 w-48 scale-[0.95]"
+        />
+      </div>
 
       <div className="flex-none mt-4 mb-8 text-center">
         <p className="text-white/80 text-base">

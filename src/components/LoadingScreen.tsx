@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import titleTypoImg from '@/img/title_typo.svg'
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
 
 const TIPS = [
@@ -10,21 +11,37 @@ const TIPS = [
 ]
 
 export function LoadingScreen() {
-  const [tip] = useState(() => TIPS[Math.floor(Math.random() * TIPS.length)])
+  const [tip, setTip] = useState(TIPS[0])
+
+  useEffect(() => {
+    setTip(TIPS[Math.floor(Math.random() * TIPS.length)])
+  }, [])
 
   return (
-    <main className="h-[100dvh] flex flex-col items-center bg-[rgb(69,179,101)] text-white px-6 overflow-hidden">
+    <main className="h-[100dvh] flex flex-col items-center bg-[rgb(0,160,85)] text-white px-6 overflow-hidden">
       {/* 固定スペーサー: 動画位置をLocationPermissionと完全一致させる */}
       <div className="flex-none" style={{ height: 'calc(50dvh - 12rem)' }} />
 
-      <video
-        src={`${basePath}/logo.mp4`}
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="h-72 w-auto flex-none"
-      />
+      <div className="relative h-72 flex-none">
+        {/* <video
+          src={`${basePath}/logo.mp4`}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="h-72 w-auto opacity-20"
+        /> */}
+        <img
+          src={`${basePath}/logo.gif`}
+          alt=""
+          className="h-72 w-auto scale-[1.2]"
+        />
+        <img
+          src={titleTypoImg.src}
+          alt=""
+          className="absolute left-1/2 -translate-x-1/2 bottom-10 w-48 scale-[0.95]"
+        />
+      </div>
 
       <div className="mt-8 w-40 h-1.5 bg-white/30 overflow-hidden mb-6 flex-none">
         <div className="h-full bg-white animate-loading-progress" />
