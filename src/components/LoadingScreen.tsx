@@ -4,10 +4,8 @@ import { useState, useEffect } from 'react'
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
 
 const TIPS = [
-  '森林浴は\nストレスホルモンを\n13%減らします',
   '週2回20分以上の滞在が\nおすすめです',
   '東京にある\n駅の数は783 / 森の数は6600',
-  '森に行ったら\n深呼吸も忘れずに',
   'カナダでは医師が\n森の滞在を処方します',
 ]
 

@@ -10,7 +10,7 @@ import { LocationPermission } from '@/components/LocationPermission'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { ForestTipBubble } from '@/components/ForestTipBubble'
 import { formatDistance, getEstimatedArrivalTime } from '@/lib/distance'
-import iconImg from '@/img/icon.svg'
+import iconImg from '@/img/greenback.svg'
 import {
   searchForestsLocal,
   preloadForestData,

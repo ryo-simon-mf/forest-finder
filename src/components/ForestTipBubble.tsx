@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react'
 
 const TIPS = [
   '桜が見ごろです',
-  '新芽が顔をだしています',
-  '季節の変わり目を肌で',
+  'シジュウカラの鳴き声は「ツツピー」',
+  '日差しが強いとこはこもれび日和',
 ]
 
 const SHOW_DURATION = 5000
