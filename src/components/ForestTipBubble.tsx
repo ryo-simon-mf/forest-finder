@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react'
 const TIPS = [
   '桜が見ごろです',
   'シジュウカラの鳴き声は「ツツピー」',
-  '日差しが強いとこはこもれび日和',
+  '日差しが強いなら こもれび日和',
 ]
 
 const SHOW_DURATION = 5000
