@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
 
 const TIPS = [
@@ -9,30 +9,8 @@ const TIPS = [
   'カナダでは医師が\n森の滞在を処方します',
 ]
 
-const SWITCH_INTERVAL = 1700
-
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr]
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]]
-  }
-  return a
-}
-
 export function LoadingScreen() {
-  const [shuffled, setShuffled] = useState(TIPS)
-  const [tipIndex, setTipIndex] = useState(0)
-
-  useEffect(() => {
-    setShuffled(shuffle(TIPS))
-  }, [])
-
-  useEffect(() => {
-    const t1 = setTimeout(() => setTipIndex(1), SWITCH_INTERVAL)
-    const t2 = setTimeout(() => setTipIndex(2), SWITCH_INTERVAL * 2)
-    return () => { clearTimeout(t1); clearTimeout(t2) }
-  }, [])
+  const [tip] = useState(() => TIPS[Math.floor(Math.random() * TIPS.length)])
 
   return (
     <main className="h-[100dvh] flex flex-col items-center bg-[rgb(69,179,101)] text-white px-6 overflow-hidden">
@@ -54,7 +32,7 @@ export function LoadingScreen() {
 
       <div className="h-[4.5rem] flex-none">
         <p className="text-white/90 text-base text-center leading-relaxed whitespace-pre-line">
-          {shuffled[tipIndex]}
+          {tip}
         </p>
       </div>
     </main>
