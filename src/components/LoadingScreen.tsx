@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import titleTypoImg from '@/img/title_typo.svg'
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
 
